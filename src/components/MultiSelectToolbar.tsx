@@ -93,6 +93,51 @@ export function MultiSelectToolbar() {
     });
   };
 
+  const handleArrangeAsGrid = () => {
+    if (selectedNodes.length < 2) return;
+
+    // Calculate optimal grid dimensions (as square as possible)
+    const count = selectedNodes.length;
+    const cols = Math.ceil(Math.sqrt(count));
+
+    // Sort nodes by their current position (top-to-bottom, left-to-right)
+    const sortedNodes = [...selectedNodes].sort((a, b) => {
+      const rowA = Math.floor(a.position.y / 100);
+      const rowB = Math.floor(b.position.y / 100);
+      if (rowA !== rowB) return rowA - rowB;
+      return a.position.x - b.position.x;
+    });
+
+    // Find the starting position (top-left of bounding box)
+    const startX = Math.min(...sortedNodes.map((n) => n.position.x));
+    const startY = Math.min(...sortedNodes.map((n) => n.position.y));
+
+    // Get max node dimensions for consistent spacing
+    const maxWidth = Math.max(
+      ...sortedNodes.map((n) => (n.style?.width as number) || n.measured?.width || 220)
+    );
+    const maxHeight = Math.max(
+      ...sortedNodes.map((n) => (n.style?.height as number) || n.measured?.height || 200)
+    );
+
+    // Position each node in the grid
+    sortedNodes.forEach((node, index) => {
+      const col = index % cols;
+      const row = Math.floor(index / cols);
+
+      onNodesChange([
+        {
+          type: "position",
+          id: node.id,
+          position: {
+            x: startX + col * (maxWidth + STACK_GAP),
+            y: startY + row * (maxHeight + STACK_GAP),
+          },
+        },
+      ]);
+    });
+  };
+
   if (!toolbarPosition || selectedNodes.length < 2) return null;
 
   return (
@@ -120,6 +165,15 @@ export function MultiSelectToolbar() {
       >
         <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
           <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16v4H4zM4 14h16v4H4z" />
+        </svg>
+      </button>
+      <button
+        onClick={handleArrangeAsGrid}
+        className="p-1.5 rounded hover:bg-neutral-700 text-neutral-400 hover:text-neutral-100 transition-colors"
+        title="Arrange as grid (G)"
+      >
+        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6A2.25 2.25 0 016 3.75h2.25A2.25 2.25 0 0110.5 6v2.25a2.25 2.25 0 01-2.25 2.25H6a2.25 2.25 0 01-2.25-2.25V6zM3.75 15.75A2.25 2.25 0 016 13.5h2.25a2.25 2.25 0 012.25 2.25V18a2.25 2.25 0 01-2.25 2.25H6A2.25 2.25 0 013.75 18v-2.25zM13.5 6a2.25 2.25 0 012.25-2.25H18A2.25 2.25 0 0120.25 6v2.25A2.25 2.25 0 0118 10.5h-2.25a2.25 2.25 0 01-2.25-2.25V6zM13.5 15.75a2.25 2.25 0 012.25-2.25H18a2.25 2.25 0 012.25 2.25V18A2.25 2.25 0 0118 20.25h-2.25A2.25 2.25 0 0113.5 18v-2.25z" />
         </svg>
       </button>
     </div>

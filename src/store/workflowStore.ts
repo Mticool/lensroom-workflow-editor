@@ -19,6 +19,7 @@ import {
   LLMGenerateNodeData,
   OutputNodeData,
   WorkflowNodeData,
+  ImageHistoryItem,
 } from "@/types";
 import { useToast } from "@/components/Toast";
 
@@ -81,6 +82,11 @@ interface WorkflowStore {
   getNodeById: (id: string) => WorkflowNode | undefined;
   getConnectedInputs: (nodeId: string) => { images: string[]; text: string | null };
   validateWorkflow: () => { valid: boolean; errors: string[] };
+
+  // Global Image History
+  globalImageHistory: ImageHistoryItem[];
+  addToGlobalHistory: (item: Omit<ImageHistoryItem, "id">) => void;
+  clearGlobalHistory: () => void;
 }
 
 const createDefaultNodeData = (type: NodeType): WorkflowNodeData => {
@@ -141,6 +147,7 @@ export const useWorkflowStore = create<WorkflowStore>((set, get) => ({
   isRunning: false,
   currentNodeId: null,
   pausedAtNodeId: null,
+  globalImageHistory: [],
 
   setEdgeStyle: (style: EdgeStyle) => {
     set({ edgeStyle: style });
@@ -320,16 +327,15 @@ export const useWorkflowStore = create<WorkflowStore>((set, get) => ({
 
         if (handleId === "image" || !handleId) {
           // Get image from source node - collect all connected images
-          let sourceImage: string | null = null;
           if (sourceNode.type === "imageInput") {
-            sourceImage = (sourceNode.data as ImageInputNodeData).image;
+            const sourceImage = (sourceNode.data as ImageInputNodeData).image;
+            if (sourceImage) images.push(sourceImage);
           } else if (sourceNode.type === "annotation") {
-            sourceImage = (sourceNode.data as AnnotationNodeData).outputImage;
+            const sourceImage = (sourceNode.data as AnnotationNodeData).outputImage;
+            if (sourceImage) images.push(sourceImage);
           } else if (sourceNode.type === "nanoBanana") {
-            sourceImage = (sourceNode.data as NanoBananaNodeData).outputImage;
-          }
-          if (sourceImage) {
-            images.push(sourceImage);
+            const sourceImage = (sourceNode.data as NanoBananaNodeData).outputImage;
+            if (sourceImage) images.push(sourceImage);
           }
         }
 
@@ -402,15 +408,10 @@ export const useWorkflowStore = create<WorkflowStore>((set, get) => ({
     const { nodes, edges, updateNodeData, getConnectedInputs, isRunning } = get();
 
     if (isRunning) {
-      console.warn(`[Workflow] ⚠️ Workflow is already running, ignoring duplicate execution request`);
       return;
     }
 
-    console.log(`[Workflow] ========== STARTING WORKFLOW EXECUTION ==========`);
     const isResuming = startFromNodeId === get().pausedAtNodeId;
-    if (startFromNodeId) {
-      console.log(`[Workflow] Starting from node: ${startFromNodeId}${isResuming ? ' (resuming from pause)' : ''}`);
-    }
     set({ isRunning: true, pausedAtNodeId: null });
 
     // Topological sort
@@ -447,9 +448,6 @@ export const useWorkflowStore = create<WorkflowStore>((set, get) => ({
         const nodeIndex = sorted.findIndex((n) => n.id === startFromNodeId);
         if (nodeIndex !== -1) {
           startIndex = nodeIndex;
-          console.log(`[Workflow] Skipping ${startIndex} nodes, starting at index ${startIndex}`);
-        } else {
-          console.warn(`[Workflow] Start node ${startFromNodeId} not found in sorted list`);
         }
       }
 
@@ -464,7 +462,6 @@ export const useWorkflowStore = create<WorkflowStore>((set, get) => ({
           const incomingEdges = edges.filter((e) => e.target === node.id);
           const pauseEdge = incomingEdges.find((e) => e.data?.hasPause);
           if (pauseEdge) {
-            console.log(`[Workflow] ⏸ Paused at edge before node: ${node.id}`);
             set({ pausedAtNodeId: node.id, isRunning: false, currentNodeId: null });
             useToast.getState().show("Workflow paused - click Run to continue", "warning");
             return;
@@ -519,24 +516,6 @@ export const useWorkflowStore = create<WorkflowStore>((set, get) => ({
             try {
               const nodeData = node.data as NanoBananaNodeData;
 
-              console.log(`[Generate] ===== STARTING IMAGE GENERATION =====`);
-              console.log(`[Generate] Node ID: ${node.id}`);
-              console.log(`[Generate] Model: ${nodeData.model}`);
-              console.log(`[Generate] Aspect Ratio: ${nodeData.aspectRatio}`);
-              console.log(`[Generate] Resolution: ${nodeData.resolution}`);
-              console.log(`[Generate] Google Search: ${nodeData.useGoogleSearch}`);
-              console.log(`[Generate] Prompt length: ${text.length} chars`);
-              console.log(`[Generate] Prompt preview: "${text.substring(0, 100)}${text.length > 100 ? '...' : ''}"`);
-              console.log(`[Generate] Number of images: ${images.length}`);
-
-              // Analyze each image
-              images.forEach((img, i) => {
-                const imgSizeKB = (img.length / 1024).toFixed(2);
-                const isBase64 = img.startsWith('data:');
-                const mimeType = isBase64 ? img.match(/data:([^;]+)/)?.[1] : 'unknown';
-                console.log(`[Generate] Image ${i + 1}: ${imgSizeKB}KB, MIME: ${mimeType}, Base64: ${isBase64}`);
-              });
-
               const requestPayload = {
                 images,
                 prompt: text,
@@ -546,61 +525,21 @@ export const useWorkflowStore = create<WorkflowStore>((set, get) => ({
                 useGoogleSearch: nodeData.useGoogleSearch,
               };
 
-              const requestBody = JSON.stringify(requestPayload);
-              const payloadSizeMB = (requestBody.length / (1024 * 1024)).toFixed(2);
-              console.log(`[Generate] Total request payload size: ${payloadSizeMB}MB`);
-
-              console.log(`[Generate] Initiating fetch to /api/generate...`);
-              console.log(`[Generate] Current timestamp: ${new Date().toISOString()}`);
-              const fetchStartTime = Date.now();
-
-              let response;
-              try {
-                response = await fetch("/api/generate", {
-                  method: "POST",
-                  headers: {
-                    "Content-Type": "application/json",
-                  },
-                  body: requestBody,
-                });
-                console.log(`[Generate] ✓ Fetch promise resolved successfully`);
-              } catch (fetchError) {
-                console.error(`[Generate] ❌ Fetch promise rejected`);
-                console.error(`[Generate] Fetch error type:`, fetchError?.constructor?.name);
-                console.error(`[Generate] Fetch error message:`, fetchError instanceof Error ? fetchError.message : String(fetchError));
-                console.error(`[Generate] Fetch error name:`, fetchError instanceof Error ? fetchError.name : 'N/A');
-
-                // Check if this might be caused by Next.js Fast Refresh
-                if (fetchError instanceof TypeError && fetchError.message.includes('NetworkError')) {
-                  console.warn(`[Generate] ⚠️ This error may be caused by Next.js Fast Refresh interrupting the request.`);
-                  console.warn(`[Generate] ⚠️ The server may have completed successfully - check terminal logs.`);
-                  console.warn(`[Generate] ⚠️ Try again, or avoid saving files while generation is in progress.`);
-                }
-
-                // Check if this is a Firefox-specific issue
-                console.error(`[Generate] User agent:`, navigator.userAgent);
-
-                throw fetchError; // Re-throw to be handled by outer catch
-              }
-
-              const fetchDuration = Date.now() - fetchStartTime;
-              console.log(`[Generate] Fetch completed in ${fetchDuration}ms`);
-              console.log(`[Generate] Response status: ${response.status} ${response.statusText}`);
-              console.log(`[Generate] Response headers:`, Object.fromEntries(response.headers.entries()));
+              const response = await fetch("/api/generate", {
+                method: "POST",
+                headers: {
+                  "Content-Type": "application/json",
+                },
+                body: JSON.stringify(requestPayload),
+              });
 
               if (!response.ok) {
-                console.error(`[Generate] ❌ HTTP Error Response`);
                 const errorText = await response.text();
-                console.error(`[Generate] Error response body:`, errorText);
-                console.error(`[Generate] Response Content-Type:`, response.headers.get('content-type'));
-
                 let errorMessage = `HTTP ${response.status}: ${response.statusText}`;
                 try {
                   const errorJson = JSON.parse(errorText);
-                  console.error(`[Generate] Parsed error JSON:`, errorJson);
                   errorMessage = errorJson.error || errorMessage;
-                } catch (parseError) {
-                  console.error(`[Generate] Could not parse error response as JSON:`, parseError);
+                } catch {
                   if (errorText) errorMessage += ` - ${errorText.substring(0, 200)}`;
                 }
 
@@ -608,62 +547,42 @@ export const useWorkflowStore = create<WorkflowStore>((set, get) => ({
                   status: "error",
                   error: errorMessage,
                 });
-                console.log(`[Generate] ===== GENERATION FAILED (HTTP ERROR) =====`);
                 set({ isRunning: false, currentNodeId: null });
                 return;
               }
 
-              console.log(`[Generate] ✓ Response OK, parsing JSON...`);
               const result = await response.json();
-              console.log(`[Generate] Result success: ${result.success}`);
-              console.log(`[Generate] Result has image: ${!!result.image}`);
-
-              if (result.image) {
-                const resultImageSize = (result.image.length / 1024).toFixed(2);
-                console.log(`[Generate] Result image size: ${resultImageSize}KB`);
-              }
 
               if (result.success && result.image) {
-                console.log(`[Generate] ✓✓✓ GENERATION SUCCESSFUL ✓✓✓`);
+                // Save the newly generated image to global history
+                get().addToGlobalHistory({
+                  image: result.image,
+                  timestamp: Date.now(),
+                  prompt: text,
+                  aspectRatio: nodeData.aspectRatio,
+                  model: nodeData.model,
+                });
                 updateNodeData(node.id, {
                   outputImage: result.image,
                   status: "complete",
                   error: null,
                 });
               } else {
-                console.error(`[Generate] ❌ Generation failed despite OK response`);
-                console.error(`[Generate] Result error:`, result.error);
                 updateNodeData(node.id, {
                   status: "error",
                   error: result.error || "Generation failed",
                 });
-                console.log(`[Generate] ===== GENERATION FAILED (API ERROR) =====`);
                 set({ isRunning: false, currentNodeId: null });
                 return;
               }
             } catch (error) {
-              // Detailed error logging
-              console.error(`[Generate] ❌❌❌ EXCEPTION CAUGHT ❌❌❌`);
-              console.error(`[Generate] Error type:`, error?.constructor?.name);
-              console.error(`[Generate] Error message:`, error instanceof Error ? error.message : String(error));
-              console.error(`[Generate] Error stack:`, error instanceof Error ? error.stack : 'N/A');
-
-              // Log all error properties
-              if (error && typeof error === 'object') {
-                console.error(`[Generate] Error properties:`, Object.keys(error));
-                console.error(`[Generate] Full error object:`, error);
-              }
-
               let errorMessage = "Generation failed";
               if (error instanceof DOMException && error.name === 'AbortError') {
-                console.error(`[Generate] AbortError - Request was aborted (likely timeout)`);
-                errorMessage = "Request timed out after 5 minutes. The Gemini API is taking too long to respond. Try reducing image sizes or using a simpler prompt.";
+                errorMessage = "Request timed out. Try reducing image sizes or using a simpler prompt.";
               } else if (error instanceof TypeError && error.message.includes('NetworkError')) {
-                console.error(`[Generate] TypeError with NetworkError - likely Next.js Fast Refresh`);
-                errorMessage = `Network error (likely caused by Next.js Fast Refresh during file save). The server may have completed successfully - check terminal logs. Avoid saving files during image generation.`;
+                errorMessage = "Network error. Check your connection and try again.";
               } else if (error instanceof TypeError) {
-                console.error(`[Generate] TypeError detected - likely network/fetch issue`);
-                errorMessage = `Network error: ${error.message}. This may indicate a connection issue or the response is too large.`;
+                errorMessage = `Network error: ${error.message}`;
               } else if (error instanceof Error) {
                 errorMessage = error.message;
               }
@@ -672,7 +591,6 @@ export const useWorkflowStore = create<WorkflowStore>((set, get) => ({
                 status: "error",
                 error: errorMessage,
               });
-              console.log(`[Generate] ===== GENERATION FAILED (EXCEPTION) =====`);
               set({ isRunning: false, currentNodeId: null });
               return;
             }
@@ -710,6 +628,23 @@ export const useWorkflowStore = create<WorkflowStore>((set, get) => ({
                   maxTokens: nodeData.maxTokens,
                 }),
               });
+
+              if (!response.ok) {
+                const errorText = await response.text();
+                let errorMessage = `HTTP ${response.status}`;
+                try {
+                  const errorJson = JSON.parse(errorText);
+                  errorMessage = errorJson.error || errorMessage;
+                } catch {
+                  if (errorText) errorMessage += ` - ${errorText.substring(0, 200)}`;
+                }
+                updateNodeData(node.id, {
+                  status: "error",
+                  error: errorMessage,
+                });
+                set({ isRunning: false, currentNodeId: null });
+                return;
+              }
 
               const result = await response.json();
 
@@ -750,8 +685,7 @@ export const useWorkflowStore = create<WorkflowStore>((set, get) => ({
       }
 
       set({ isRunning: false, currentNodeId: null });
-    } catch (error) {
-      console.error("Workflow execution error:", error);
+    } catch {
       set({ isRunning: false, currentNodeId: null });
     }
   },
@@ -764,17 +698,14 @@ export const useWorkflowStore = create<WorkflowStore>((set, get) => ({
     const { nodes, updateNodeData, getConnectedInputs, isRunning } = get();
 
     if (isRunning) {
-      console.warn(`[Regenerate] ⚠️ Workflow is already running`);
       return;
     }
 
     const node = nodes.find((n) => n.id === nodeId);
     if (!node) {
-      console.error(`[Regenerate] Node not found: ${nodeId}`);
       return;
     }
 
-    console.log(`[Regenerate] ===== REGENERATING NODE ${nodeId} =====`);
     set({ isRunning: true, currentNodeId: nodeId });
 
     try {
@@ -829,6 +760,14 @@ export const useWorkflowStore = create<WorkflowStore>((set, get) => ({
 
         const result = await response.json();
         if (result.success && result.image) {
+          // Save the newly generated image to global history
+          get().addToGlobalHistory({
+            image: result.image,
+            timestamp: Date.now(),
+            prompt: text,
+            aspectRatio: nodeData.aspectRatio,
+            model: nodeData.model,
+          });
           updateNodeData(nodeId, {
             outputImage: result.image,
             status: "complete",
@@ -873,6 +812,20 @@ export const useWorkflowStore = create<WorkflowStore>((set, get) => ({
           }),
         });
 
+        if (!response.ok) {
+          const errorText = await response.text();
+          let errorMessage = `HTTP ${response.status}`;
+          try {
+            const errorJson = JSON.parse(errorText);
+            errorMessage = errorJson.error || errorMessage;
+          } catch {
+            if (errorText) errorMessage += ` - ${errorText.substring(0, 200)}`;
+          }
+          updateNodeData(nodeId, { status: "error", error: errorMessage });
+          set({ isRunning: false, currentNodeId: null });
+          return;
+        }
+
         const result = await response.json();
         if (result.success && result.text) {
           updateNodeData(nodeId, {
@@ -890,7 +843,6 @@ export const useWorkflowStore = create<WorkflowStore>((set, get) => ({
 
       set({ isRunning: false, currentNodeId: null });
     } catch (error) {
-      console.error(`[Regenerate] Error:`, error);
       updateNodeData(nodeId, {
         status: "error",
         error: error instanceof Error ? error.message : "Regeneration failed",
@@ -950,5 +902,20 @@ export const useWorkflowStore = create<WorkflowStore>((set, get) => ({
       isRunning: false,
       currentNodeId: null,
     });
+  },
+
+  addToGlobalHistory: (item: Omit<ImageHistoryItem, "id">) => {
+    const newItem: ImageHistoryItem = {
+      ...item,
+      id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+    };
+
+    set((state) => ({
+      globalImageHistory: [newItem, ...state.globalImageHistory],
+    }));
+  },
+
+  clearGlobalHistory: () => {
+    set({ globalImageHistory: [] });
   },
 }));

@@ -26,10 +26,12 @@ import {
   OutputNode,
 } from "./nodes";
 import { EditableEdge } from "./edges";
-import { ConnectionDropMenu } from "./ConnectionDropMenu";
+import { ConnectionDropMenu, MenuAction } from "./ConnectionDropMenu";
 import { MultiSelectToolbar } from "./MultiSelectToolbar";
 import { EdgeToolbar } from "./EdgeToolbar";
-import { NodeType } from "@/types";
+import { GlobalImageHistory } from "./GlobalImageHistory";
+import { NodeType, NanoBananaNodeData } from "@/types";
+import { detectAndSplitGrid } from "@/utils/gridSplitter";
 
 const nodeTypes: NodeTypes = {
   imageInput: ImageInputNode,
@@ -64,6 +66,26 @@ const isValidConnection = (connection: Edge | Connection): boolean => {
   return true;
 };
 
+// Define which handles each node type has
+const getNodeHandles = (nodeType: string): { inputs: string[]; outputs: string[] } => {
+  switch (nodeType) {
+    case "imageInput":
+      return { inputs: [], outputs: ["image"] };
+    case "annotation":
+      return { inputs: ["image"], outputs: ["image"] };
+    case "prompt":
+      return { inputs: [], outputs: ["text"] };
+    case "nanoBanana":
+      return { inputs: ["image", "text"], outputs: ["image"] };
+    case "llmGenerate":
+      return { inputs: ["text", "image"], outputs: ["text"] };
+    case "output":
+      return { inputs: ["image"], outputs: [] };
+    default:
+      return { inputs: [], outputs: [] };
+  }
+};
+
 interface ConnectionDropState {
   position: { x: number; y: number };
   flowPosition: { x: number; y: number };
@@ -74,12 +96,13 @@ interface ConnectionDropState {
 }
 
 function WorkflowCanvasInner() {
-  const { nodes, edges, onNodesChange, onEdgesChange, onConnect, addNode, updateNodeData, loadWorkflow } =
+  const { nodes, edges, onNodesChange, onEdgesChange, onConnect, addNode, updateNodeData, loadWorkflow, getNodeById, addToGlobalHistory } =
     useWorkflowStore();
   const { screenToFlowPosition } = useReactFlow();
   const [isDragOver, setIsDragOver] = useState(false);
   const [dropType, setDropType] = useState<"image" | "workflow" | "node" | null>(null);
   const [connectionDrop, setConnectionDrop] = useState<ConnectionDropState | null>(null);
+  const [isSplitting, setIsSplitting] = useState(false);
   const reactFlowWrapper = useRef<HTMLDivElement>(null);
 
   const handleConnect = useCallback(
@@ -97,6 +120,13 @@ function WorkflowCanvasInner() {
           // Skip if this is already the connection source
           if (node.id === connection.source) {
             onConnect(connection);
+            return;
+          }
+
+          // Check if this node actually has the same output handle type
+          const nodeHandles = getNodeHandles(node.type || "");
+          if (!nodeHandles.outputs.includes(connection.sourceHandle as string)) {
+            // This node doesn't have the same output handle type, skip it
             return;
           }
 
@@ -119,26 +149,6 @@ function WorkflowCanvasInner() {
     },
     [onConnect, nodes]
   );
-
-  // Define which handles each node type has
-  const getNodeHandles = useCallback((nodeType: string): { inputs: string[]; outputs: string[] } => {
-    switch (nodeType) {
-      case "imageInput":
-        return { inputs: [], outputs: ["image"] };
-      case "annotation":
-        return { inputs: ["image"], outputs: ["image"] };
-      case "prompt":
-        return { inputs: [], outputs: ["text"] };
-      case "nanoBanana":
-        return { inputs: ["image", "text"], outputs: ["image"] };
-      case "llmGenerate":
-        return { inputs: ["text", "image"], outputs: ["text"] };
-      case "output":
-        return { inputs: ["image"], outputs: [] };
-      default:
-        return { inputs: [], outputs: [] };
-    }
-  }, []);
 
   // Handle connection dropped on empty space or on a node
   const handleConnectEnd: OnConnectEnd = useCallback(
@@ -225,15 +235,136 @@ function WorkflowCanvasInner() {
     [screenToFlowPosition, nodes, getNodeHandles, handleConnect]
   );
 
+  // Handle the splitGrid action - uses automated grid detection
+  const handleSplitGridAction = useCallback(
+    async (sourceNodeId: string, flowPosition: { x: number; y: number }) => {
+      const sourceNode = getNodeById(sourceNodeId);
+      if (!sourceNode) return;
+
+      // Get the output image from the source node
+      let sourceImage: string | null = null;
+      if (sourceNode.type === "nanoBanana") {
+        sourceImage = (sourceNode.data as NanoBananaNodeData).outputImage;
+      } else if (sourceNode.type === "imageInput") {
+        sourceImage = (sourceNode.data as { image: string | null }).image;
+      } else if (sourceNode.type === "annotation") {
+        sourceImage = (sourceNode.data as { outputImage: string | null }).outputImage;
+      }
+
+      if (!sourceImage) {
+        alert("No image available to split. Generate or load an image first.");
+        return;
+      }
+
+      const sourceNodeData = sourceNode.type === "nanoBanana" ? sourceNode.data as NanoBananaNodeData : null;
+      setIsSplitting(true);
+
+      try {
+        const { grid, images } = await detectAndSplitGrid(sourceImage);
+
+        if (images.length === 0) {
+          alert("Could not detect grid in image.");
+          setIsSplitting(false);
+          return;
+        }
+
+        // Calculate layout for the new nodes
+        const nodeWidth = 300;
+        const nodeHeight = 280;
+        const gap = 20;
+
+        // Add split images to global history
+        images.forEach((imageData: string, index: number) => {
+          const row = Math.floor(index / grid.cols);
+          const col = index % grid.cols;
+          addToGlobalHistory({
+            image: imageData,
+            timestamp: Date.now() + index,
+            prompt: `Split ${row + 1}-${col + 1} from ${grid.rows}x${grid.cols} grid`,
+            aspectRatio: sourceNodeData?.aspectRatio || "1:1",
+            model: sourceNodeData?.model || "nano-banana",
+          });
+        });
+
+        // Create ImageInput nodes arranged in a grid matching the layout
+        images.forEach((imageData: string, index: number) => {
+          const row = Math.floor(index / grid.cols);
+          const col = index % grid.cols;
+
+          const nodeId = addNode("imageInput", {
+            x: flowPosition.x + col * (nodeWidth + gap),
+            y: flowPosition.y + row * (nodeHeight + gap),
+          });
+
+          // Get dimensions from the split image
+          const img = new Image();
+          img.onload = () => {
+            updateNodeData(nodeId, {
+              image: imageData,
+              filename: `split-${row + 1}-${col + 1}.png`,
+              dimensions: { width: img.width, height: img.height },
+            });
+          };
+          img.src = imageData;
+        });
+
+        console.log(`[SplitGrid] Created ${images.length} nodes from ${grid.rows}x${grid.cols} grid (confidence: ${Math.round(grid.confidence * 100)}%)`);
+      } catch (error) {
+        console.error("[SplitGrid] Error:", error);
+        alert("Failed to split image grid: " + (error instanceof Error ? error.message : "Unknown error"));
+      } finally {
+        setIsSplitting(false);
+      }
+    },
+    [getNodeById, addNode, updateNodeData, addToGlobalHistory]
+  );
+
+  // Helper to get image from a node
+  const getImageFromNode = useCallback((nodeId: string): string | null => {
+    const node = getNodeById(nodeId);
+    if (!node) return null;
+
+    switch (node.type) {
+      case "imageInput":
+        return (node.data as { image: string | null }).image;
+      case "annotation":
+        return (node.data as { outputImage: string | null }).outputImage;
+      case "nanoBanana":
+        return (node.data as { outputImage: string | null }).outputImage;
+      default:
+        return null;
+    }
+  }, [getNodeById]);
+
   // Handle node selection from drop menu
-  const handleNodeSelect = useCallback(
-    (nodeType: NodeType) => {
+  const handleMenuSelect = useCallback(
+    (selection: { type: NodeType | MenuAction; isAction: boolean }) => {
       if (!connectionDrop) return;
 
       const { flowPosition, sourceNodeId, sourceHandleId, connectionType, handleType } = connectionDrop;
 
+      // Handle actions differently from node creation
+      if (selection.isAction) {
+        if (selection.type === "splitGrid" && sourceNodeId) {
+          handleSplitGridAction(sourceNodeId, flowPosition);
+        }
+        setConnectionDrop(null);
+        return;
+      }
+
+      // Regular node creation
+      const nodeType = selection.type as NodeType;
+
       // Create the new node at the drop position
       const newNodeId = addNode(nodeType, flowPosition);
+
+      // If creating an annotation node from an image source, populate it with the source image
+      if (nodeType === "annotation" && connectionType === "source" && handleType === "image" && sourceNodeId) {
+        const sourceImage = getImageFromNode(sourceNodeId);
+        if (sourceImage) {
+          updateNodeData(newNodeId, { sourceImage, outputImage: sourceImage });
+        }
+      }
 
       // Determine the correct handle IDs for the new node based on its type
       let targetHandleId: string | null = null;
@@ -317,7 +448,7 @@ function WorkflowCanvasInner() {
 
       setConnectionDrop(null);
     },
-    [connectionDrop, addNode, onConnect, nodes]
+    [connectionDrop, addNode, onConnect, nodes, handleSplitGridAction, getImageFromNode, updateNodeData]
   );
 
   const handleCloseDropMenu = useCallback(() => {
@@ -401,6 +532,47 @@ function WorkflowCanvasInner() {
 
           currentX += nodeWidth + STACK_GAP;
         });
+      } else if (event.key === "g" || event.key === "G") {
+        // Arrange as grid
+        const count = selectedNodes.length;
+        const cols = Math.ceil(Math.sqrt(count));
+
+        // Sort nodes by their current position (top-to-bottom, left-to-right)
+        const sortedNodes = [...selectedNodes].sort((a, b) => {
+          const rowA = Math.floor(a.position.y / 100);
+          const rowB = Math.floor(b.position.y / 100);
+          if (rowA !== rowB) return rowA - rowB;
+          return a.position.x - b.position.x;
+        });
+
+        // Find the starting position (top-left of bounding box)
+        const startX = Math.min(...sortedNodes.map((n) => n.position.x));
+        const startY = Math.min(...sortedNodes.map((n) => n.position.y));
+
+        // Get max node dimensions for consistent spacing
+        const maxWidth = Math.max(
+          ...sortedNodes.map((n) => (n.style?.width as number) || (n.measured?.width) || 220)
+        );
+        const maxHeight = Math.max(
+          ...sortedNodes.map((n) => (n.style?.height as number) || (n.measured?.height) || 200)
+        );
+
+        // Position each node in the grid
+        sortedNodes.forEach((node, index) => {
+          const col = index % cols;
+          const row = Math.floor(index / cols);
+
+          onNodesChange([
+            {
+              type: "position",
+              id: node.id,
+              position: {
+                x: startX + col * (maxWidth + STACK_GAP),
+                y: startY + row * (maxHeight + STACK_GAP),
+              },
+            },
+          ]);
+        });
       }
     };
 
@@ -417,6 +589,14 @@ function WorkflowCanvasInner() {
     if (hasNodeType) {
       setIsDragOver(true);
       setDropType("node");
+      return;
+    }
+
+    // Check if dragging a history image
+    const hasHistoryImage = Array.from(event.dataTransfer.types).includes("application/history-image");
+    if (hasHistoryImage) {
+      setIsDragOver(true);
+      setDropType("image");
       return;
     }
 
@@ -459,6 +639,35 @@ function WorkflowCanvasInner() {
         });
         addNode(nodeType, position);
         return;
+      }
+
+      // Check for history image drop
+      const historyImageData = event.dataTransfer.getData("application/history-image");
+      if (historyImageData) {
+        try {
+          const { image, prompt } = JSON.parse(historyImageData);
+          const position = screenToFlowPosition({
+            x: event.clientX,
+            y: event.clientY,
+          });
+
+          // Create ImageInput node with the history image
+          const nodeId = addNode("imageInput", position);
+
+          // Get image dimensions and update node
+          const img = new Image();
+          img.onload = () => {
+            updateNodeData(nodeId, {
+              image: image,
+              filename: `history-${Date.now()}.png`,
+              dimensions: { width: img.width, height: img.height },
+            });
+          };
+          img.src = image;
+          return;
+        } catch (err) {
+          console.error("Failed to parse history image data:", err);
+        }
       }
 
       const allFiles = Array.from(event.dataTransfer.files);
@@ -546,6 +755,17 @@ function WorkflowCanvasInner() {
           </div>
         </div>
       )}
+
+      {/* Splitting indicator */}
+      {isSplitting && (
+        <div className="absolute inset-0 bg-black/50 z-50 flex items-center justify-center">
+          <div className="bg-neutral-800 border border-neutral-600 rounded-lg px-6 py-4 shadow-xl flex items-center gap-3">
+            <div className="w-5 h-5 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
+            <p className="text-neutral-200 text-sm font-medium">Splitting image grid...</p>
+          </div>
+        </div>
+      )}
+
       <ReactFlow
         nodes={nodes}
         edges={edges}
@@ -601,7 +821,7 @@ function WorkflowCanvasInner() {
           position={connectionDrop.position}
           handleType={connectionDrop.handleType}
           connectionType={connectionDrop.connectionType}
-          onSelect={handleNodeSelect}
+          onSelect={handleMenuSelect}
           onClose={handleCloseDropMenu}
         />
       )}
@@ -611,6 +831,9 @@ function WorkflowCanvasInner() {
 
       {/* Edge toolbar */}
       <EdgeToolbar />
+
+      {/* Global image history */}
+      <GlobalImageHistory />
     </div>
   );
 }

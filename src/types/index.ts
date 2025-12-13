@@ -106,6 +106,16 @@ export interface PromptNodeData extends BaseNodeData {
   prompt: string;
 }
 
+// Image History Item (for tracking generated images)
+export interface ImageHistoryItem {
+  id: string;
+  image: string;          // Base64 data URL
+  timestamp: number;      // For display & sorting
+  prompt: string;         // The prompt used
+  aspectRatio: AspectRatio;
+  model: ModelType;
+}
+
 // Nano Banana Node Data (Image Generation)
 export interface NanoBananaNodeData extends BaseNodeData {
   inputImages: string[]; // Now supports multiple images

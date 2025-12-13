@@ -1,7 +1,7 @@
 "use client";
 
-import { ReactNode } from "react";
-import { NodeResizer } from "@xyflow/react";
+import { ReactNode, useCallback } from "react";
+import { NodeResizer, OnResize, useReactFlow } from "@xyflow/react";
 import { useWorkflowStore } from "@/store/workflowStore";
 
 interface BaseNodeProps {
@@ -29,6 +29,35 @@ export function BaseNode({
 }: BaseNodeProps) {
   const currentNodeId = useWorkflowStore((state) => state.currentNodeId);
   const isCurrentlyExecuting = currentNodeId === id;
+  const { getNodes, setNodes } = useReactFlow();
+
+  // Synchronize resize across all selected nodes
+  const handleResize: OnResize = useCallback(
+    (event, params) => {
+      const allNodes = getNodes();
+      const selectedNodes = allNodes.filter((node) => node.selected && node.id !== id);
+
+      if (selectedNodes.length > 0) {
+        // Apply the same dimensions to all other selected nodes by updating their style
+        setNodes((nodes) =>
+          nodes.map((node) => {
+            if (node.selected && node.id !== id) {
+              return {
+                ...node,
+                style: {
+                  ...node.style,
+                  width: params.width,
+                  height: params.height,
+                },
+              };
+            }
+            return node;
+          })
+        );
+      }
+    },
+    [id, getNodes, setNodes]
+  );
 
   return (
     <>
@@ -38,6 +67,7 @@ export function BaseNode({
         minHeight={minHeight}
         lineClassName="!border-transparent"
         handleClassName="!w-3 !h-3 !bg-transparent !border-none"
+        onResize={handleResize}
       />
       <div
         className={`
