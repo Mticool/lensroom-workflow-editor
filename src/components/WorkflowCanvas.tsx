@@ -11,7 +11,6 @@ import {
   Connection,
   Edge,
   useReactFlow,
-  ReactFlowProvider,
   OnConnectEnd,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
@@ -95,7 +94,7 @@ interface ConnectionDropState {
   sourceHandleId: string | null;
 }
 
-function WorkflowCanvasInner() {
+export function WorkflowCanvas() {
   const { nodes, edges, onNodesChange, onEdgesChange, onConnect, addNode, updateNodeData, loadWorkflow, getNodeById, addToGlobalHistory } =
     useWorkflowStore();
   const { screenToFlowPosition, getViewport } = useReactFlow();
@@ -894,14 +893,5 @@ function WorkflowCanvasInner() {
       {/* Global image history */}
       <GlobalImageHistory />
     </div>
-  );
-}
-
-// Wrap with ReactFlowProvider to enable useReactFlow hook
-export function WorkflowCanvas() {
-  return (
-    <ReactFlowProvider>
-      <WorkflowCanvasInner />
-    </ReactFlowProvider>
   );
 }

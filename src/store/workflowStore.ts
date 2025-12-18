@@ -20,6 +20,7 @@ import {
   OutputNodeData,
   WorkflowNodeData,
   ImageHistoryItem,
+  WorkflowSaveConfig,
 } from "@/types";
 import { useToast } from "@/components/Toast";
 
@@ -28,6 +29,7 @@ export type EdgeStyle = "angular" | "curved";
 // Workflow file format
 export interface WorkflowFile {
   version: 1;
+  id?: string;  // Optional for backward compatibility with old/shared workflows
   name: string;
   nodes: WorkflowNode[];
   edges: WorkflowEdge[];
@@ -88,6 +90,26 @@ interface WorkflowStore {
   globalImageHistory: ImageHistoryItem[];
   addToGlobalHistory: (item: Omit<ImageHistoryItem, "id">) => void;
   clearGlobalHistory: () => void;
+
+  // Auto-save state
+  workflowId: string | null;
+  workflowName: string | null;
+  saveDirectoryPath: string | null;
+  generationsPath: string | null;
+  lastSavedAt: number | null;
+  hasUnsavedChanges: boolean;
+  autoSaveEnabled: boolean;
+  isSaving: boolean;
+
+  // Auto-save actions
+  setWorkflowMetadata: (id: string, name: string, path: string, generationsPath: string | null) => void;
+  setWorkflowName: (name: string) => void;
+  setGenerationsPath: (path: string | null) => void;
+  setAutoSaveEnabled: (enabled: boolean) => void;
+  markAsUnsaved: () => void;
+  saveToFile: () => Promise<boolean>;
+  initializeAutoSave: () => void;
+  cleanupAutoSave: () => void;
 }
 
 const createDefaultNodeData = (type: NodeType): WorkflowNodeData => {
@@ -139,6 +161,28 @@ const createDefaultNodeData = (type: NodeType): WorkflowNodeData => {
 };
 
 let nodeIdCounter = 0;
+let autoSaveIntervalId: ReturnType<typeof setInterval> | null = null;
+
+// localStorage helpers for auto-save configs
+const STORAGE_KEY = "node-banana-workflow-configs";
+
+const generateWorkflowId = () =>
+  `wf_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+
+const loadSaveConfigs = (): Record<string, WorkflowSaveConfig> => {
+  if (typeof window === "undefined") return {};
+  const stored = localStorage.getItem(STORAGE_KEY);
+  return stored ? JSON.parse(stored) : {};
+};
+
+const saveSaveConfig = (config: WorkflowSaveConfig) => {
+  if (typeof window === "undefined") return;
+  const configs = loadSaveConfigs();
+  configs[config.workflowId] = config;
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(configs));
+};
+
+export { generateWorkflowId };
 
 export const useWorkflowStore = create<WorkflowStore>((set, get) => ({
   nodes: [],
@@ -149,6 +193,16 @@ export const useWorkflowStore = create<WorkflowStore>((set, get) => ({
   currentNodeId: null,
   pausedAtNodeId: null,
   globalImageHistory: [],
+
+  // Auto-save initial state
+  workflowId: null,
+  workflowName: null,
+  saveDirectoryPath: null,
+  generationsPath: null,
+  lastSavedAt: null,
+  hasUnsavedChanges: false,
+  autoSaveEnabled: true,
+  isSaving: false,
 
   setEdgeStyle: (style: EdgeStyle) => {
     set({ edgeStyle: style });
@@ -179,6 +233,7 @@ export const useWorkflowStore = create<WorkflowStore>((set, get) => ({
 
     set((state) => ({
       nodes: [...state.nodes, newNode],
+      hasUnsavedChanges: true,
     }));
 
     return id;
@@ -191,6 +246,7 @@ export const useWorkflowStore = create<WorkflowStore>((set, get) => ({
           ? { ...node, data: { ...node.data, ...data } as WorkflowNodeData }
           : node
       ) as WorkflowNode[],
+      hasUnsavedChanges: true,
     }));
   },
 
@@ -200,18 +256,27 @@ export const useWorkflowStore = create<WorkflowStore>((set, get) => ({
       edges: state.edges.filter(
         (edge) => edge.source !== nodeId && edge.target !== nodeId
       ),
+      hasUnsavedChanges: true,
     }));
   },
 
   onNodesChange: (changes: NodeChange<WorkflowNode>[]) => {
+    // Only mark as unsaved for meaningful changes (not selection changes)
+    const hasMeaningfulChange = changes.some(
+      (c) => c.type !== "select" && c.type !== "dimensions"
+    );
     set((state) => ({
       nodes: applyNodeChanges(changes, state.nodes),
+      ...(hasMeaningfulChange ? { hasUnsavedChanges: true } : {}),
     }));
   },
 
   onEdgesChange: (changes: EdgeChange<WorkflowEdge>[]) => {
+    // Only mark as unsaved for meaningful changes (not selection changes)
+    const hasMeaningfulChange = changes.some((c) => c.type !== "select");
     set((state) => ({
       edges: applyEdgeChanges(changes, state.edges),
+      ...(hasMeaningfulChange ? { hasUnsavedChanges: true } : {}),
     }));
   },
 
@@ -224,12 +289,14 @@ export const useWorkflowStore = create<WorkflowStore>((set, get) => ({
         },
         state.edges
       ),
+      hasUnsavedChanges: true,
     }));
   },
 
   removeEdge: (edgeId: string) => {
     set((state) => ({
       edges: state.edges.filter((edge) => edge.id !== edgeId),
+      hasUnsavedChanges: true,
     }));
   },
 
@@ -240,6 +307,7 @@ export const useWorkflowStore = create<WorkflowStore>((set, get) => ({
           ? { ...edge, data: { ...edge.data, hasPause: !edge.data?.hasPause } }
           : edge
       ),
+      hasUnsavedChanges: true,
     }));
   },
 
@@ -306,6 +374,7 @@ export const useWorkflowStore = create<WorkflowStore>((set, get) => ({
     set({
       nodes: [...updatedNodes, ...newNodes] as WorkflowNode[],
       edges: [...edges, ...newEdges],
+      hasUnsavedChanges: true,
     });
   },
 
@@ -572,6 +641,22 @@ export const useWorkflowStore = create<WorkflowStore>((set, get) => ({
                   status: "complete",
                   error: null,
                 });
+
+                // Auto-save to generations folder if configured
+                const genPath = get().generationsPath;
+                if (genPath) {
+                  fetch("/api/save-generation", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                      directoryPath: genPath,
+                      image: result.image,
+                      prompt: text,
+                    }),
+                  }).catch((err) => {
+                    console.error("Failed to save generation:", err);
+                  });
+                }
               } else {
                 updateNodeData(node.id, {
                   status: "error",
@@ -778,6 +863,22 @@ export const useWorkflowStore = create<WorkflowStore>((set, get) => ({
             status: "complete",
             error: null,
           });
+
+          // Auto-save to generations folder if configured
+          const genPath = get().generationsPath;
+          if (genPath) {
+            fetch("/api/save-generation", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                directoryPath: genPath,
+                image: result.image,
+                prompt: text,
+              }),
+            }).catch((err) => {
+              console.error("Failed to save generation:", err);
+            });
+          }
         } else {
           updateNodeData(nodeId, {
             status: "error",
@@ -891,12 +992,23 @@ export const useWorkflowStore = create<WorkflowStore>((set, get) => ({
     }, 0);
     nodeIdCounter = maxId;
 
+    // Look up saved config from localStorage (only if workflow has an ID)
+    const configs = loadSaveConfigs();
+    const savedConfig = workflow.id ? configs[workflow.id] : null;
+
     set({
       nodes: workflow.nodes,
       edges: workflow.edges,
       edgeStyle: workflow.edgeStyle || "angular",
       isRunning: false,
       currentNodeId: null,
+      // Restore workflow ID and paths from localStorage if available
+      workflowId: workflow.id || null,
+      workflowName: workflow.name,
+      saveDirectoryPath: savedConfig?.directoryPath || null,
+      generationsPath: savedConfig?.generationsPath || null,
+      lastSavedAt: savedConfig?.lastSavedAt || null,
+      hasUnsavedChanges: false,
     });
   },
 
@@ -906,6 +1018,13 @@ export const useWorkflowStore = create<WorkflowStore>((set, get) => ({
       edges: [],
       isRunning: false,
       currentNodeId: null,
+      // Reset auto-save state when clearing workflow
+      workflowId: null,
+      workflowName: null,
+      saveDirectoryPath: null,
+      generationsPath: null,
+      lastSavedAt: null,
+      hasUnsavedChanges: false,
     });
   },
 
@@ -922,5 +1041,134 @@ export const useWorkflowStore = create<WorkflowStore>((set, get) => ({
 
   clearGlobalHistory: () => {
     set({ globalImageHistory: [] });
+  },
+
+  // Auto-save actions
+  setWorkflowMetadata: (id: string, name: string, path: string, generationsPath: string | null) => {
+    set({
+      workflowId: id,
+      workflowName: name,
+      saveDirectoryPath: path,
+      generationsPath: generationsPath,
+    });
+  },
+
+  setWorkflowName: (name: string) => {
+    set({
+      workflowName: name,
+      hasUnsavedChanges: true,
+    });
+  },
+
+  setGenerationsPath: (path: string | null) => {
+    set({
+      generationsPath: path,
+    });
+  },
+
+  setAutoSaveEnabled: (enabled: boolean) => {
+    set({ autoSaveEnabled: enabled });
+  },
+
+  markAsUnsaved: () => {
+    set({ hasUnsavedChanges: true });
+  },
+
+  saveToFile: async () => {
+    const {
+      nodes,
+      edges,
+      edgeStyle,
+      workflowId,
+      workflowName,
+      saveDirectoryPath,
+    } = get();
+
+    if (!workflowId || !workflowName || !saveDirectoryPath) {
+      return false;
+    }
+
+    set({ isSaving: true });
+
+    try {
+      const workflow: WorkflowFile = {
+        version: 1,
+        id: workflowId,
+        name: workflowName,
+        nodes,
+        edges,
+        edgeStyle,
+      };
+
+      const response = await fetch("/api/workflow", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          directoryPath: saveDirectoryPath,
+          filename: workflowName,
+          workflow,
+        }),
+      });
+
+      const result = await response.json();
+
+      if (result.success) {
+        const timestamp = Date.now();
+        set({
+          lastSavedAt: timestamp,
+          hasUnsavedChanges: false,
+          isSaving: false,
+        });
+
+        // Update localStorage
+        saveSaveConfig({
+          workflowId,
+          name: workflowName,
+          directoryPath: saveDirectoryPath,
+          generationsPath: get().generationsPath,
+          lastSavedAt: timestamp,
+        });
+
+        return true;
+      } else {
+        set({ isSaving: false });
+        useToast.getState().show(`Auto-save failed: ${result.error}`, "error");
+        return false;
+      }
+    } catch (error) {
+      set({ isSaving: false });
+      useToast
+        .getState()
+        .show(
+          `Auto-save failed: ${error instanceof Error ? error.message : "Unknown error"}`,
+          "error"
+        );
+      return false;
+    }
+  },
+
+  initializeAutoSave: () => {
+    if (autoSaveIntervalId) return;
+
+    autoSaveIntervalId = setInterval(async () => {
+      const state = get();
+      if (
+        state.autoSaveEnabled &&
+        state.hasUnsavedChanges &&
+        state.workflowId &&
+        state.workflowName &&
+        state.saveDirectoryPath &&
+        !state.isSaving
+      ) {
+        await state.saveToFile();
+      }
+    }, 90 * 1000); // 90 seconds
+  },
+
+  cleanupAutoSave: () => {
+    if (autoSaveIntervalId) {
+      clearInterval(autoSaveIntervalId);
+      autoSaveIntervalId = null;
+    }
   },
 }));

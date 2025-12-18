@@ -211,3 +211,12 @@ export interface ToolOptions {
   fontSize: number;
   opacity: number;
 }
+
+// Auto-save configuration stored in localStorage
+export interface WorkflowSaveConfig {
+  workflowId: string;
+  name: string;
+  directoryPath: string;
+  generationsPath: string | null;
+  lastSavedAt: number | null;
+}
