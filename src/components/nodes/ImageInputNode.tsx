@@ -79,6 +79,15 @@ export function ImageInputNode({ id, data, selected }: NodeProps<ImageInputNodeT
 
   return (
     <BaseNode id={id} title="Image" selected={selected}>
+      {/* Reference input handle for visual links from Split Grid node */}
+      <Handle
+        type="target"
+        position={Position.Left}
+        id="reference"
+        data-handletype="reference"
+        className="!bg-gray-500"
+      />
+
       <input
         ref={fileInputRef}
         type="file"

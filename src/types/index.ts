@@ -7,6 +7,7 @@ export type NodeType =
   | "prompt"
   | "nanoBanana"
   | "llmGenerate"
+  | "splitGrid"
   | "output";
 
 // Aspect Ratios (supported by both Nano Banana and Nano Banana Pro)
@@ -24,6 +25,7 @@ export type LLMProvider = "google" | "openai";
 // LLM Model Options
 export type LLMModelType =
   | "gemini-2.5-flash"
+  | "gemini-3-flash-preview"
   | "gemini-3-pro-preview"
   | "gpt-4.1-mini"
   | "gpt-4.1-nano";
@@ -146,6 +148,29 @@ export interface OutputNodeData extends BaseNodeData {
   image: string | null;
 }
 
+// Split Grid Node Data (Utility Node)
+export interface SplitGridNodeData extends BaseNodeData {
+  sourceImage: string | null;
+  targetCount: number;  // 4, 6, 8, 9, or 10
+  defaultPrompt: string;
+  generateSettings: {
+    aspectRatio: AspectRatio;
+    resolution: Resolution;
+    model: ModelType;
+    useGoogleSearch: boolean;
+  };
+  childNodeIds: Array<{
+    imageInput: string;
+    prompt: string;
+    nanoBanana: string;
+  }>;
+  gridRows: number;
+  gridCols: number;
+  isConfigured: boolean;
+  status: NodeStatus;
+  error: string | null;
+}
+
 // Union of all node data types
 export type WorkflowNodeData =
   | ImageInputNodeData
@@ -153,6 +178,7 @@ export type WorkflowNodeData =
   | PromptNodeData
   | NanoBananaNodeData
   | LLMGenerateNodeData
+  | SplitGridNodeData
   | OutputNodeData;
 
 // Workflow Node with typed data (extended with optional groupId)

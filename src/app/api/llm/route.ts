@@ -7,6 +7,7 @@ export const maxDuration = 60; // 1 minute timeout
 // Map model types to actual API model IDs
 const GOOGLE_MODEL_MAP: Record<string, string> = {
   "gemini-2.5-flash": "gemini-2.5-flash",
+  "gemini-3-flash-preview": "gemini-3-flash-preview",
   "gemini-3-pro-preview": "gemini-3-pro-preview",
 };
 

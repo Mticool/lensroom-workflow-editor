@@ -23,9 +23,10 @@ import {
   PromptNode,
   NanoBananaNode,
   LLMGenerateNode,
+  SplitGridNode,
   OutputNode,
 } from "./nodes";
-import { EditableEdge } from "./edges";
+import { EditableEdge, ReferenceEdge } from "./edges";
 import { ConnectionDropMenu, MenuAction } from "./ConnectionDropMenu";
 import { MultiSelectToolbar } from "./MultiSelectToolbar";
 import { EdgeToolbar } from "./EdgeToolbar";
@@ -40,11 +41,13 @@ const nodeTypes: NodeTypes = {
   prompt: PromptNode,
   nanoBanana: NanoBananaNode,
   llmGenerate: LLMGenerateNode,
+  splitGrid: SplitGridNode,
   output: OutputNode,
 };
 
 const edgeTypes: EdgeTypes = {
   editable: EditableEdge,
+  reference: ReferenceEdge,
 };
 
 // Connection validation rules
@@ -71,7 +74,7 @@ const isValidConnection = (connection: Edge | Connection): boolean => {
 const getNodeHandles = (nodeType: string): { inputs: string[]; outputs: string[] } => {
   switch (nodeType) {
     case "imageInput":
-      return { inputs: [], outputs: ["image"] };
+      return { inputs: ["reference"], outputs: ["image"] };
     case "annotation":
       return { inputs: ["image"], outputs: ["image"] };
     case "prompt":
@@ -80,6 +83,8 @@ const getNodeHandles = (nodeType: string): { inputs: string[]; outputs: string[]
       return { inputs: ["image", "text"], outputs: ["image"] };
     case "llmGenerate":
       return { inputs: ["text", "image"], outputs: ["text"] };
+    case "splitGrid":
+      return { inputs: ["image"], outputs: ["reference"] };
     case "output":
       return { inputs: ["image"], outputs: [] };
     default:
@@ -388,7 +393,7 @@ export function WorkflowCanvas() {
 
       // Handle actions differently from node creation
       if (selection.isAction) {
-        if (selection.type === "splitGrid" && sourceNodeId) {
+        if (selection.type === "splitGridImmediate" && sourceNodeId) {
           handleSplitGridAction(sourceNodeId, flowPosition);
         }
         setConnectionDrop(null);
@@ -415,7 +420,7 @@ export function WorkflowCanvas() {
 
       // Map handle type to the correct handle ID based on node type
       if (handleType === "image") {
-        if (nodeType === "annotation" || nodeType === "output") {
+        if (nodeType === "annotation" || nodeType === "output" || nodeType === "splitGrid") {
           targetHandleId = "image";
         } else if (nodeType === "nanoBanana") {
           targetHandleId = "image";
@@ -560,6 +565,7 @@ export function WorkflowCanvas() {
             prompt: { width: 320, height: 220 },
             nanoBanana: { width: 300, height: 300 },
             llmGenerate: { width: 320, height: 360 },
+            splitGrid: { width: 300, height: 320 },
             output: { width: 320, height: 320 },
           };
           const dims = defaultDimensions[nodeType];
@@ -956,6 +962,8 @@ export function WorkflowCanvas() {
                 return "#22c55e";
               case "llmGenerate":
                 return "#06b6d4";
+              case "splitGrid":
+                return "#f59e0b";
               case "output":
                 return "#ef4444";
               default:

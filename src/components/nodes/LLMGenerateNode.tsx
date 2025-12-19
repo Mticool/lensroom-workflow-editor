@@ -13,6 +13,7 @@ const PROVIDERS: { value: LLMProvider; label: string }[] = [
 
 const MODELS: Record<LLMProvider, { value: LLMModelType; label: string }[]> = {
   google: [
+    { value: "gemini-3-flash-preview", label: "Gemini 3 Flash" },
     { value: "gemini-2.5-flash", label: "Gemini 2.5 Flash" },
     { value: "gemini-3-pro-preview", label: "Gemini 3.0 Pro" },
   ],
@@ -54,13 +55,6 @@ export function LLMGenerateNode({ id, data, selected }: NodeProps<LLMGenerateNod
     [id, updateNodeData]
   );
 
-  const handleMaxTokensChange = useCallback(
-    (e: React.ChangeEvent<HTMLSelectElement>) => {
-      updateNodeData(id, { maxTokens: parseInt(e.target.value, 10) });
-    },
-    [id, updateNodeData]
-  );
-
   const regenerateNode = useWorkflowStore((state) => state.regenerateNode);
   const isRunning = useWorkflowStore((state) => state.isRunning);
 
@@ -72,7 +66,11 @@ export function LLMGenerateNode({ id, data, selected }: NodeProps<LLMGenerateNod
     updateNodeData(id, { outputText: null, status: "idle", error: null });
   }, [id, updateNodeData]);
 
-  const availableModels = MODELS[nodeData.provider];
+  const provider = nodeData.provider || "google";
+  const availableModels = MODELS[provider] || MODELS.google;
+  const model = availableModels.some(m => m.value === nodeData.model)
+    ? nodeData.model
+    : availableModels[0].value;
 
   return (
     <BaseNode
@@ -164,7 +162,7 @@ export function LLMGenerateNode({ id, data, selected }: NodeProps<LLMGenerateNod
 
         {/* Provider selector */}
         <select
-          value={nodeData.provider}
+          value={provider}
           onChange={handleProviderChange}
           className="w-full text-[10px] py-1 px-1.5 border border-neutral-700 rounded bg-neutral-900/50 focus:outline-none focus:ring-1 focus:ring-neutral-600 text-neutral-300 shrink-0"
         >
@@ -177,7 +175,7 @@ export function LLMGenerateNode({ id, data, selected }: NodeProps<LLMGenerateNod
 
         {/* Model selector */}
         <select
-          value={nodeData.model}
+          value={model}
           onChange={handleModelChange}
           className="w-full text-[10px] py-1 px-1.5 border border-neutral-700 rounded bg-neutral-900/50 focus:outline-none focus:ring-1 focus:ring-neutral-600 text-neutral-300 shrink-0"
         >
@@ -188,32 +186,18 @@ export function LLMGenerateNode({ id, data, selected }: NodeProps<LLMGenerateNod
           ))}
         </select>
 
-        {/* Temperature and Max Tokens row */}
-        <div className="flex gap-1.5 shrink-0">
-          <div className="flex-1 flex flex-col gap-0.5">
-            <label className="text-[9px] text-neutral-500">Temp: {nodeData.temperature.toFixed(1)}</label>
-            <input
-              type="range"
-              min="0"
-              max="2"
-              step="0.1"
-              value={nodeData.temperature}
-              onChange={handleTemperatureChange}
-              className="w-full h-1 bg-neutral-700 rounded-lg appearance-none cursor-pointer accent-neutral-400"
-            />
-          </div>
-          <select
-            value={nodeData.maxTokens}
-            onChange={handleMaxTokensChange}
-            className="w-16 text-[10px] py-1 px-1 border border-neutral-700 rounded bg-neutral-900/50 focus:outline-none focus:ring-1 focus:ring-neutral-600 text-neutral-300"
-            title="Max tokens"
-          >
-            <option value={256}>256</option>
-            <option value={512}>512</option>
-            <option value={1024}>1K</option>
-            <option value={2048}>2K</option>
-            <option value={4096}>4K</option>
-          </select>
+        {/* Temperature slider */}
+        <div className="flex flex-col gap-0.5 shrink-0">
+          <label className="text-[9px] text-neutral-500">Temp: {nodeData.temperature.toFixed(1)}</label>
+          <input
+            type="range"
+            min="0"
+            max="2"
+            step="0.1"
+            value={nodeData.temperature}
+            onChange={handleTemperatureChange}
+            className="w-full h-1 bg-neutral-700 rounded-lg appearance-none cursor-pointer accent-neutral-400"
+          />
         </div>
       </div>
     </BaseNode>

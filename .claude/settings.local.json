@@ -10,7 +10,9 @@
       "Bash(npx tsc:*)",
       "Bash(cat:*)",
       "Bash(find:*)",
-      "Bash(xargs cat:*)"
+      "Bash(xargs cat:*)",
+      "WebSearch",
+      "WebFetch(domain:ai.google.dev)"
     ],
     "deny": [],
     "ask": []

@@ -17,6 +17,7 @@ import {
   PromptNodeData,
   NanoBananaNodeData,
   LLMGenerateNodeData,
+  SplitGridNodeData,
   OutputNodeData,
   WorkflowNodeData,
   ImageHistoryItem,
@@ -64,6 +65,7 @@ interface WorkflowStore {
   // Edge operations
   onEdgesChange: (changes: EdgeChange<WorkflowEdge>[]) => void;
   onConnect: (connection: Connection) => void;
+  addEdgeWithType: (connection: Connection, edgeType: string) => void;
   removeEdge: (edgeId: string) => void;
   toggleEdgePause: (edgeId: string) => void;
 
@@ -160,12 +162,30 @@ const createDefaultNodeData = (type: NodeType): WorkflowNodeData => {
         inputPrompt: null,
         outputText: null,
         provider: "google",
-        model: "gemini-2.5-flash",
+        model: "gemini-3-flash-preview",
         temperature: 0.7,
-        maxTokens: 1024,
+        maxTokens: 8192,
         status: "idle",
         error: null,
       } as LLMGenerateNodeData;
+    case "splitGrid":
+      return {
+        sourceImage: null,
+        targetCount: 6,
+        defaultPrompt: "",
+        generateSettings: {
+          aspectRatio: "1:1",
+          resolution: "1K",
+          model: "nano-banana-pro",
+          useGoogleSearch: false,
+        },
+        childNodeIds: [],
+        gridRows: 2,
+        gridCols: 3,
+        isConfigured: false,
+        status: "idle",
+        error: null,
+      } as SplitGridNodeData;
     case "output":
       return {
         image: null,
@@ -247,6 +267,7 @@ export const useWorkflowStore = create<WorkflowStore>((set, get) => ({
       prompt: { width: 320, height: 220 },
       nanoBanana: { width: 300, height: 300 },
       llmGenerate: { width: 320, height: 360 },
+      splitGrid: { width: 300, height: 320 },
       output: { width: 320, height: 320 },
     };
 
@@ -315,6 +336,20 @@ export const useWorkflowStore = create<WorkflowStore>((set, get) => ({
         {
           ...connection,
           id: `edge-${connection.source}-${connection.target}-${connection.sourceHandle || "default"}-${connection.targetHandle || "default"}`,
+        },
+        state.edges
+      ),
+      hasUnsavedChanges: true,
+    }));
+  },
+
+  addEdgeWithType: (connection: Connection, edgeType: string) => {
+    set((state) => ({
+      edges: addEdge(
+        {
+          ...connection,
+          id: `edge-${connection.source}-${connection.target}-${connection.sourceHandle || "default"}-${connection.targetHandle || "default"}`,
+          type: edgeType,
         },
         state.edges
       ),
@@ -428,6 +463,7 @@ export const useWorkflowStore = create<WorkflowStore>((set, get) => ({
       prompt: { width: 320, height: 220 },
       nanoBanana: { width: 300, height: 300 },
       llmGenerate: { width: 320, height: 360 },
+      splitGrid: { width: 300, height: 320 },
       output: { width: 320, height: 320 },
     };
 
@@ -931,6 +967,78 @@ export const useWorkflowStore = create<WorkflowStore>((set, get) => ({
               updateNodeData(node.id, {
                 status: "error",
                 error: error instanceof Error ? error.message : "LLM generation failed",
+              });
+              set({ isRunning: false, currentNodeId: null });
+              return;
+            }
+            break;
+          }
+
+          case "splitGrid": {
+            const { images } = getConnectedInputs(node.id);
+            const sourceImage = images[0] || null;
+
+            if (!sourceImage) {
+              updateNodeData(node.id, {
+                status: "error",
+                error: "No input image connected",
+              });
+              set({ isRunning: false, currentNodeId: null });
+              return;
+            }
+
+            const nodeData = node.data as SplitGridNodeData;
+
+            if (!nodeData.isConfigured) {
+              updateNodeData(node.id, {
+                status: "error",
+                error: "Node not configured - open settings first",
+              });
+              set({ isRunning: false, currentNodeId: null });
+              return;
+            }
+
+            updateNodeData(node.id, {
+              sourceImage,
+              status: "loading",
+              error: null,
+            });
+
+            try {
+              // Import and use the grid splitter
+              const { splitWithDimensions } = await import("@/utils/gridSplitter");
+              const { images: splitImages } = await splitWithDimensions(
+                sourceImage,
+                nodeData.gridRows,
+                nodeData.gridCols
+              );
+
+              // Populate child imageInput nodes with split images
+              for (let index = 0; index < nodeData.childNodeIds.length; index++) {
+                const childSet = nodeData.childNodeIds[index];
+                if (splitImages[index]) {
+                  // Create a promise to get image dimensions
+                  await new Promise<void>((resolve) => {
+                    const img = new Image();
+                    img.onload = () => {
+                      updateNodeData(childSet.imageInput, {
+                        image: splitImages[index],
+                        filename: `split-${Math.floor(index / nodeData.gridCols) + 1}-${(index % nodeData.gridCols) + 1}.png`,
+                        dimensions: { width: img.width, height: img.height },
+                      });
+                      resolve();
+                    };
+                    img.onerror = () => resolve();
+                    img.src = splitImages[index];
+                  });
+                }
+              }
+
+              updateNodeData(node.id, { status: "complete", error: null });
+            } catch (error) {
+              updateNodeData(node.id, {
+                status: "error",
+                error: error instanceof Error ? error.message : "Failed to split image",
               });
               set({ isRunning: false, currentNodeId: null });
               return;
