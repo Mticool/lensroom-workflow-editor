@@ -2,8 +2,12 @@
   "buildCommand": "npm run build",
   "ignoreCommand": "git diff --quiet HEAD^ HEAD ./examples/ && git diff --quiet HEAD^ HEAD ./.local/",
   "functions": {
+    "api/**": {
+      "excludeFiles": "{examples,.local}/**/*.json"
+    },
     "api/workflow.js": {
-      "maxDuration": 10
+      "maxDuration": 10,
+      "excludeFiles": "{examples,.local}/**/*.json"
     }
   },
   "crons": []

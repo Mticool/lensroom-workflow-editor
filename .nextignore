@@ -1,0 +1,5 @@
+# Files to ignore during Next.js build
+examples/
+.local/
+examples/contact-sheet-*.json
+.local/contact-sheet-*.json
