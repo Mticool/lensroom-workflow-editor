@@ -6,15 +6,15 @@ Copy these variables to `.env.local` for local development or add to Vercel Envi
 
 ```bash
 # KIE.AI API (Image/Video Generation)
-KIE_API_KEY=__KIE_KEY_REDACTED__
+KIE_API_KEY=your_kie_api_key_here
 
 # Anthropic API (LLM Text Generation)
-ANTHROPIC_API_KEY=sk-ant-api03-__REDACTED__
+ANTHROPIC_API_KEY=your_anthropic_api_key_here
 ANTHROPIC_MODEL=claude-3-5-sonnet-20241022
 
 # Supabase (Database + Storage + Auth)
 NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
-SUPABASE_SERVICE_ROLE_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imh1amp2bnVia295eG1tZnJubGx2Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTczNDg4MTg4NCwiZXhwIjoyMDUwNDU3ODg0fQ.jP-pVg8u0qOD6Q9Fp_Y7Ep0u8SXDW89fEjJrMr2Lqok
+SUPABASE_SERVICE_ROLE_KEY=your_supabase_service_role_key_here
 ```
 
 ## Optional (Development/Testing)

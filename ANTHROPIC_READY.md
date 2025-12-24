@@ -143,7 +143,7 @@ Get from: https://console.anthropic.com/
 
 **Настройка `.env.local`:**
 ```env
-ANTHROPIC_API_KEY=sk-ant-api03-__REDACTED__
+ANTHROPIC_API_KEY=sk-ant-api03-__YOUR_KEY_HERE__
 ANTHROPIC_MODEL=claude-3-5-sonnet-20241022
 ```
 
@@ -311,7 +311,7 @@ curl -X POST http://localhost:3000/api/infer \
 
 ### Обязательные (для Anthropic)
 ```env
-ANTHROPIC_API_KEY=sk-ant-api03-__REDACTED__
+ANTHROPIC_API_KEY=sk-ant-api03-__YOUR_KEY_HERE__
 ```
 
 ### Опциональные
@@ -390,7 +390,7 @@ ANTHROPIC_MODEL=claude-3-5-sonnet-20241022
 
 ### 1. Добавить API key в `.env.local`:
 ```env
-ANTHROPIC_API_KEY=sk-ant-api03-__REDACTED__
+ANTHROPIC_API_KEY=sk-ant-api03-__YOUR_KEY_HERE__
 ANTHROPIC_MODEL=claude-3-5-sonnet-20241022
 ```
 
