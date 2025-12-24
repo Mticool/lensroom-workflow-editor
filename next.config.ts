@@ -6,18 +6,18 @@ const nextConfig: NextConfig = {
     serverActions: {
       bodySizeLimit: "50mb",
     },
-    // Exclude large files from serverless function output tracing
-    outputFileTracingExcludes: {
-      "*": [
-        "./examples/**/*",
-        "./.local/**/*",
-        "node_modules/@swc/core-*/**/*",
-        "**/examples/**",
-        "**/.local/**",
-        "examples/contact-sheet-*.json",
-        ".local/contact-sheet-*.json",
-      ],
-    },
+  },
+  // Exclude large files from serverless function output tracing
+  outputFileTracingExcludes: {
+    "*": [
+      "./examples/**/*",
+      "./.local/**/*",
+      "node_modules/@swc/core-*/**/*",
+      "**/examples/**",
+      "**/.local/**",
+      "examples/contact-sheet-*.json",
+      ".local/contact-sheet-*.json",
+    ],
   },
   turbopack: {
     root: __dirname,
