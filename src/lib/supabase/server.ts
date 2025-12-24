@@ -24,20 +24,35 @@ export function getServiceSupabase(): SupabaseClient {
   // Validate environment variables
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  const supabaseOptional = process.env.INFER_SUPABASE_OPTIONAL === "true";
 
   if (!supabaseUrl) {
-    throw new Error(
-      "Missing NEXT_PUBLIC_SUPABASE_URL environment variable. " +
-      "Please add it to your .env.local file."
-    );
+    const errorMessage = "Missing NEXT_PUBLIC_SUPABASE_URL environment variable. " +
+      "Please add it to your .env.local file.";
+    
+    // In fallback mode, throw a more specific error that can be caught
+    if (supabaseOptional) {
+      const error = new Error(errorMessage);
+      error.name = "SupabaseConfigError";
+      throw error;
+    }
+    
+    throw new Error(errorMessage);
   }
 
   if (!serviceRoleKey) {
-    throw new Error(
-      "Missing SUPABASE_SERVICE_ROLE_KEY environment variable. " +
+    const errorMessage = "Missing SUPABASE_SERVICE_ROLE_KEY environment variable. " +
       "Please add it to your .env.local file. " +
-      "WARNING: Never expose this key to the client!"
-    );
+      "WARNING: Never expose this key to the client!";
+    
+    // In fallback mode, throw a more specific error that can be caught
+    if (supabaseOptional) {
+      const error = new Error(errorMessage);
+      error.name = "SupabaseConfigError";
+      throw error;
+    }
+    
+    throw new Error(errorMessage);
   }
 
   // Validate URL format

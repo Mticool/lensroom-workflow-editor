@@ -90,11 +90,19 @@ export async function tryGetBalance(
     return null;
   }
 
-  const { getUserBalance } = await import("../supabase/server");
-  return await wrapSupabaseOperation(
-    () => getUserBalance(userId),
-    "getUserBalance"
-  );
+  try {
+    const { getUserBalance } = await import("../supabase/server");
+    return await wrapSupabaseOperation(
+      () => getUserBalance(userId),
+      "getUserBalance"
+    );
+  } catch (error) {
+    // Catch SupabaseConfigError from getServiceSupabase() and convert to SupabaseUnavailableError
+    if (error instanceof Error && error.name === "SupabaseConfigError") {
+      throw new SupabaseUnavailableError(error.message, "missing_env");
+    }
+    throw error;
+  }
 }
 
 /**
@@ -112,12 +120,20 @@ export async function tryAdjustCredits(
     return null;
   }
 
-  const { adjustCredits } = await import("../supabase/server");
-  return await wrapSupabaseOperation(
-    () =>
-      adjustCredits(userId, amount, type, description, generationId, metadata),
-    "adjustCredits"
-  );
+  try {
+    const { adjustCredits } = await import("../supabase/server");
+    return await wrapSupabaseOperation(
+      () =>
+        adjustCredits(userId, amount, type, description, generationId, metadata),
+      "adjustCredits"
+    );
+  } catch (error) {
+    // Catch SupabaseConfigError from getServiceSupabase() and convert to SupabaseUnavailableError
+    if (error instanceof Error && error.name === "SupabaseConfigError") {
+      throw new SupabaseUnavailableError(error.message, "missing_env");
+    }
+    throw error;
+  }
 }
 
 /**
@@ -136,20 +152,28 @@ export async function tryCreateGeneration(
     return;
   }
 
-  const { createGeneration } = await import("../generations/db");
-  await wrapSupabaseOperation(
-    () =>
-      createGeneration(
-        userId,
-        generationId,
-        type,
-        model,
-        prompt,
-        creditsUsed,
-        metadata
-      ),
-    "createGeneration"
-  );
+  try {
+    const { createGeneration } = await import("../generations/db");
+    await wrapSupabaseOperation(
+      () =>
+        createGeneration(
+          userId,
+          generationId,
+          type,
+          model,
+          prompt,
+          creditsUsed,
+          metadata
+        ),
+      "createGeneration"
+    );
+  } catch (error) {
+    // Catch SupabaseConfigError from getServiceSupabase() and convert to SupabaseUnavailableError
+    if (error instanceof Error && error.name === "SupabaseConfigError") {
+      throw new SupabaseUnavailableError(error.message, "missing_env");
+    }
+    throw error;
+  }
 }
 
 /**
@@ -164,11 +188,19 @@ export async function tryUpdateGenerationSuccess(
     return;
   }
 
-  const { updateGenerationSuccess } = await import("../generations/db");
-  await wrapSupabaseOperation(
-    () => updateGenerationSuccess(generationId, resultUrls, metadata),
-    "updateGenerationSuccess"
-  );
+  try {
+    const { updateGenerationSuccess } = await import("../generations/db");
+    await wrapSupabaseOperation(
+      () => updateGenerationSuccess(generationId, resultUrls, metadata),
+      "updateGenerationSuccess"
+    );
+  } catch (error) {
+    // Catch SupabaseConfigError from getServiceSupabase() and convert to SupabaseUnavailableError
+    if (error instanceof Error && error.name === "SupabaseConfigError") {
+      throw new SupabaseUnavailableError(error.message, "missing_env");
+    }
+    throw error;
+  }
 }
 
 /**
@@ -182,11 +214,19 @@ export async function tryUpdateGenerationFailed(
     return;
   }
 
-  const { updateGenerationFailed } = await import("../generations/db");
-  await wrapSupabaseOperation(
-    () => updateGenerationFailed(generationId, errorMessage),
-    "updateGenerationFailed"
-  );
+  try {
+    const { updateGenerationFailed } = await import("../generations/db");
+    await wrapSupabaseOperation(
+      () => updateGenerationFailed(generationId, errorMessage),
+      "updateGenerationFailed"
+    );
+  } catch (error) {
+    // Catch SupabaseConfigError from getServiceSupabase() and convert to SupabaseUnavailableError
+    if (error instanceof Error && error.name === "SupabaseConfigError") {
+      throw new SupabaseUnavailableError(error.message, "missing_env");
+    }
+    throw error;
+  }
 }
 
 /**
@@ -202,10 +242,18 @@ export async function tryUploadToStorage(
     return null;
   }
 
-  const { uploadGenerationToStorage } = await import("../storage/upload");
-  return await wrapSupabaseOperation(
-    () => uploadGenerationToStorage(userId, generationId, imageUrl, type),
-    "uploadToStorage"
-  );
+  try {
+    const { uploadGenerationToStorage } = await import("../storage/upload");
+    return await wrapSupabaseOperation(
+      () => uploadGenerationToStorage(userId, generationId, imageUrl, type),
+      "uploadToStorage"
+    );
+  } catch (error) {
+    // Catch SupabaseConfigError from getServiceSupabase() and convert to SupabaseUnavailableError
+    if (error instanceof Error && error.name === "SupabaseConfigError") {
+      throw new SupabaseUnavailableError(error.message, "missing_env");
+    }
+    throw error;
+  }
 }
 
