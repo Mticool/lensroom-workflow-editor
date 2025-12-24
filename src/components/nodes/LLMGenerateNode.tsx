@@ -7,6 +7,7 @@ import { useWorkflowStore } from "@/store/workflowStore";
 import { LLMGenerateNodeData, LLMProvider, LLMModelType } from "@/types";
 import { getModels } from "@/services/inferClient";
 import { ModelDef } from "@/config/modelRegistry";
+import { RangeSlider } from "@/components/ui/RangeSlider";
 
 type LLMGenerateNodeType = Node<LLMGenerateNodeData, "llmGenerate">;
 
@@ -53,8 +54,8 @@ export function LLMGenerateNode({ id, data, selected }: NodeProps<LLMGenerateNod
   );
 
   const handleTemperatureChange = useCallback(
-    (e: React.ChangeEvent<HTMLInputElement>) => {
-      updateNodeData(id, { temperature: parseFloat(e.target.value) });
+    (value: number) => {
+      updateNodeData(id, { temperature: value });
     },
     [id, updateNodeData]
   );
@@ -355,13 +356,12 @@ export function LLMGenerateNode({ id, data, selected }: NodeProps<LLMGenerateNod
         {/* Temperature slider */}
         <div className="flex flex-col gap-0.5 shrink-0">
           <label className="text-[9px] text-neutral-500">Температура: {nodeData.temperature.toFixed(1)}</label>
-          <input
-            type="range"
-            min="0"
-            max="2"
-            step="0.1"
+          <RangeSlider
             value={nodeData.temperature}
             onChange={handleTemperatureChange}
+            min={0}
+            max={2}
+            step={0.1}
             className="w-full h-1 bg-neutral-700 rounded-lg appearance-none cursor-pointer accent-neutral-400"
           />
         </div>
