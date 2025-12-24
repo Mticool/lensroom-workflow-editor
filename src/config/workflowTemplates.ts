@@ -66,15 +66,28 @@ export const workflowTemplates: WorkflowTemplate[] = [
 /**
  * Get all available workflow templates
  * Filters out templates without URLs (not yet uploaded)
+ * In production, returns empty array (large templates are not bundled)
  */
 export function getAvailableTemplates(): WorkflowTemplate[] {
+  // In production, never include large templates to avoid bundle size issues
+  if (process.env.NODE_ENV === "production") {
+    return [];
+  }
+  
+  // In development, return templates with valid URLs only
   return workflowTemplates.filter((t) => t.url && t.url.length > 0);
 }
 
 /**
  * Get a specific template by ID
+ * In production, always returns undefined (large templates are not bundled)
  */
 export function getTemplateById(id: string): WorkflowTemplate | undefined {
+  // In production, never return templates to avoid bundle size issues
+  if (process.env.NODE_ENV === "production") {
+    return undefined;
+  }
+  
   return workflowTemplates.find((t) => t.id === id);
 }
 
