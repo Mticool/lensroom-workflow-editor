@@ -9,16 +9,16 @@ const nextConfig: NextConfig = {
   },
   outputFileTracingExcludes: {
     "*": [
-      "./examples/**/*",
-      "./.local/**/*",
       "**/examples/**",
       "**/.local/**",
+      "**/examples/**/*",
+      "**/.local/**/*",
     ],
     "api/workflow": [
-      "./examples/**/*",
-      "./.local/**/*",
       "**/examples/**",
       "**/.local/**",
+      "**/examples/**/*",
+      "**/.local/**/*",
     ],
   },
   typescript: {
