@@ -31,6 +31,27 @@ const getGridDimensions = (count: number): { rows: number; cols: number } => {
   return grids[count] || { rows: 2, cols: 3 };
 };
 
+// Russian pluralization helper
+const pluralizeImages = (count: number): string => {
+  if (count % 10 === 1 && count % 100 !== 11) {
+    return "изображения";
+  } else if ([2, 3, 4].includes(count % 10) && ![12, 13, 14].includes(count % 100)) {
+    return "изображений";
+  } else {
+    return "изображений";
+  }
+};
+
+const pluralizeSets = (count: number): string => {
+  if (count % 10 === 1 && count % 100 !== 11) {
+    return "набор";
+  } else if ([2, 3, 4].includes(count % 10) && ![12, 13, 14].includes(count % 100)) {
+    return "набора";
+  } else {
+    return "наборов";
+  }
+};
+
 export function SplitGridSettingsModal({
   nodeId,
   nodeData,
@@ -44,13 +65,64 @@ export function SplitGridSettingsModal({
   const [resolution, setResolution] = useState(nodeData.generateSettings.resolution);
   const [model, setModel] = useState(nodeData.generateSettings.model);
   const [useGoogleSearch, setUseGoogleSearch] = useState(nodeData.generateSettings.useGoogleSearch);
+  
+  // State for prompt generation
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [generateError, setGenerateError] = useState<string | null>(null);
 
   const { rows, cols } = getGridDimensions(targetCount);
   const isNanoBananaPro = model === "nano-banana-pro";
 
-  const handleCreate = useCallback(() => {
+  const handleCreate = useCallback(async () => {
     const splitNode = getNodeById(nodeId);
     if (!splitNode) return;
+
+    setIsGenerating(true);
+    setGenerateError(null);
+
+    // Generate prompt variants if user provided single base prompt
+    let promptVariants: string[];
+    
+    try {
+      if (defaultPrompt && defaultPrompt.trim().length > 0) {
+        console.log(`[SplitGrid] Generating ${targetCount} prompt variants...`);
+        
+        // Call API to generate variants
+        const response = await fetch("/api/generate-prompt-variants", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            basePrompt: defaultPrompt.trim(),
+            count: targetCount,
+          }),
+        });
+
+        if (!response.ok) {
+          throw new Error(`API returned ${response.status}`);
+        }
+
+        const data = await response.json();
+
+        if (data.success && data.variants) {
+          promptVariants = data.variants;
+          console.log(`[SplitGrid] ✓ Generated ${promptVariants.length} variants`);
+        } else {
+          throw new Error(data.error || "Не удалось сгенерировать варианты");
+        }
+      } else {
+        // No base prompt, use empty strings
+        promptVariants = Array.from({ length: targetCount }, () => "");
+      }
+    } catch (error) {
+      console.error("[SplitGrid] Failed to generate prompt variants:", error);
+      setGenerateError("Не удалось сгенерировать варианты, использую базовый промпт для всех");
+      
+      // Fallback: use base prompt for all
+      promptVariants = Array.from({ length: targetCount }, () => defaultPrompt);
+      
+      // Show error for 3 seconds, then continue
+      setTimeout(() => setGenerateError(null), 3000);
+    }
 
     // Node dimensions
     const imageInputWidth = 300;
@@ -109,8 +181,9 @@ export function SplitGridSettingsModal({
         y: clusterY + Math.max(imageInputHeight, nanoBananaHeight) + verticalGap,
       });
 
-      // Update prompt with default text
-      updateNodeData(promptId, { prompt: defaultPrompt });
+      // Update prompt with generated variant
+      const promptText = promptVariants[i] || defaultPrompt;
+      updateNodeData(promptId, { prompt: promptText });
 
       // Create connections: imageInput -> nanoBanana, prompt -> nanoBanana
       onConnect({
@@ -158,6 +231,7 @@ export function SplitGridSettingsModal({
       isConfigured: true,
     });
 
+    setIsGenerating(false);
     onClose();
   }, [
     nodeId, targetCount, defaultPrompt, aspectRatio, resolution,
@@ -177,15 +251,15 @@ export function SplitGridSettingsModal({
         className="bg-neutral-800 rounded-lg p-6 w-[520px] border border-neutral-700 shadow-xl"
         onKeyDown={handleKeyDown}
       >
-        <h2 className="text-lg font-semibold text-neutral-100 mb-4">
-          Split Grid Settings
+        <h2 className="text-lg font-medium text-neutral-100 mb-4">
+          Настройки разбиения сетки
         </h2>
 
         <div className="space-y-4">
           {/* Target count selector with visual preview */}
           <div>
             <label className="block text-sm text-neutral-400 mb-2">
-              Number of Images
+              Количество изображений
             </label>
             <div className="flex gap-2">
               {TARGET_COUNT_OPTIONS.map((count) => {
@@ -222,36 +296,36 @@ export function SplitGridSettingsModal({
               })}
             </div>
             <p className="text-xs text-neutral-500 mt-2">
-              Grid will be split into {rows}x{cols} = {targetCount} images
+              Сетка будет разбита на {rows}×{cols} = {targetCount} {pluralizeImages(targetCount)}
             </p>
           </div>
 
           {/* Default prompt */}
           <div>
             <label className="block text-sm text-neutral-400 mb-1">
-              Default Prompt
+              Базовый промпт
             </label>
             <textarea
               value={defaultPrompt}
               onChange={(e) => setDefaultPrompt(e.target.value)}
-              placeholder="Enter prompt that will be applied to all generated images..."
+              placeholder="Введите промпт, который применится ко всем создаваемым изображениям…"
               rows={3}
               className="w-full px-3 py-2 bg-neutral-900 border border-neutral-600 rounded text-neutral-100 text-sm focus:outline-none focus:border-neutral-500 resize-none"
             />
             <p className="text-xs text-neutral-500 mt-1">
-              Each prompt node can be edited individually after creation
+              После создания каждый промпт-узел можно отредактировать отдельно.
             </p>
           </div>
 
           {/* Generate settings */}
           <div>
             <label className="block text-sm text-neutral-400 mb-2">
-              Generate Node Settings
+              Параметры узла генерации
             </label>
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className="block text-xs text-neutral-500 mb-1">
-                  Model
+                  Модель
                 </label>
                 <select
                   value={model}
@@ -266,7 +340,7 @@ export function SplitGridSettingsModal({
 
               <div>
                 <label className="block text-xs text-neutral-500 mb-1">
-                  Aspect Ratio
+                  Соотношение сторон
                 </label>
                 <select
                   value={aspectRatio}
@@ -283,7 +357,7 @@ export function SplitGridSettingsModal({
                 <>
                   <div>
                     <label className="block text-xs text-neutral-500 mb-1">
-                      Resolution
+                      Разрешение
                     </label>
                     <select
                       value={resolution}
@@ -304,7 +378,7 @@ export function SplitGridSettingsModal({
                         onChange={(e) => setUseGoogleSearch(e.target.checked)}
                         className="w-4 h-4 rounded border-neutral-600 bg-neutral-900"
                       />
-                      Google Search
+                      Использовать Google Search
                     </label>
                   </div>
                 </>
@@ -313,18 +387,52 @@ export function SplitGridSettingsModal({
           </div>
         </div>
 
+        {/* Generation status indicator */}
+        {(isGenerating || generateError) && (
+          <div className="mt-4 p-3 rounded border">
+            {isGenerating ? (
+              <div className="flex items-center gap-2 text-sm text-blue-400 border-blue-500/30 bg-blue-500/10">
+                <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" />
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                </svg>
+                <span>Генерируем варианты промпта…</span>
+              </div>
+            ) : generateError ? (
+              <div className="flex items-center gap-2 text-sm text-yellow-400 border-yellow-500/30 bg-yellow-500/10">
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                </svg>
+                <span>{generateError}</span>
+              </div>
+            ) : null}
+          </div>
+        )}
+
         <div className="flex justify-end gap-2 mt-6">
           <button
             onClick={onClose}
-            className="px-4 py-2 text-sm text-neutral-400 hover:text-neutral-100 transition-colors"
+            disabled={isGenerating}
+            className="px-4 py-2 text-sm text-neutral-400 hover:text-neutral-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            Cancel
+            Отмена
           </button>
           <button
             onClick={handleCreate}
-            className="px-4 py-2 text-sm bg-white text-neutral-900 rounded hover:bg-neutral-200 transition-colors"
+            disabled={isGenerating}
+            className="px-4 py-2 text-sm font-medium bg-white text-neutral-900 rounded hover:bg-neutral-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            Create {targetCount} Generate Sets
+            {isGenerating ? (
+              <span className="flex items-center gap-2">
+                <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" />
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                </svg>
+                Генерация...
+              </span>
+            ) : (
+              `Создать ${targetCount} ${pluralizeSets(targetCount)} генерации`
+            )}
           </button>
         </div>
       </div>

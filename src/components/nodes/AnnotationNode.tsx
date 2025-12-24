@@ -87,7 +87,7 @@ export function AnnotationNode({ id, data, selected }: NodeProps<AnnotationNodeT
   const displayImage = nodeData.outputImage || nodeData.sourceImage;
 
   return (
-    <BaseNode id={id} title="Annotate" selected={selected}>
+    <BaseNode id={id} title="Аннотация" selected={selected}>
       <input
         ref={fileInputRef}
         type="file"
@@ -132,7 +132,7 @@ export function AnnotationNode({ id, data, selected }: NodeProps<AnnotationNodeT
           </button>
           <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors rounded flex items-center justify-center pointer-events-none">
             <span className="text-[10px] font-medium text-white opacity-0 group-hover:opacity-100 transition-opacity bg-black/50 px-2 py-1 rounded">
-              {nodeData.annotations.length > 0 ? `Edit (${nodeData.annotations.length})` : "Add annotations"}
+              {nodeData.annotations.length > 0 ? `Редактировать (${nodeData.annotations.length})` : "Добавить аннотации"}
             </span>
           </div>
         </div>
@@ -147,7 +147,7 @@ export function AnnotationNode({ id, data, selected }: NodeProps<AnnotationNodeT
             <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
           </svg>
           <span className="text-[10px] text-neutral-400 mt-1">
-            Drop, click, or connect
+            Перетащите, нажмите или подключите
           </span>
         </div>
       )}

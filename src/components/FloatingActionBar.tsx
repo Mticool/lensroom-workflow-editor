@@ -99,7 +99,7 @@ function GenerateComboButton() {
         onClick={() => setIsOpen(!isOpen)}
         className="px-2.5 py-1.5 text-[11px] font-medium text-neutral-400 hover:text-neutral-100 hover:bg-neutral-700 rounded transition-colors flex items-center gap-1"
       >
-        Generate
+        Генерация
         <svg
           className={`w-3 h-3 transition-transform ${isOpen ? "rotate-180" : ""}`}
           fill="none"
@@ -122,7 +122,7 @@ function GenerateComboButton() {
             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909m-18 3.75h16.5a1.5 1.5 0 001.5-1.5V6a1.5 1.5 0 00-1.5-1.5H3.75A1.5 1.5 0 002.25 6v12a1.5 1.5 0 001.5 1.5zm10.5-11.25h.008v.008h-.008V8.25zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z" />
             </svg>
-            Image
+            Изображение
           </button>
           <button
             onClick={() => handleAddNode("llmGenerate")}
@@ -133,7 +133,7 @@ function GenerateComboButton() {
             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M7.5 8.25h9m-9 3H12m-9.75 1.51c0 1.6 1.123 2.994 2.707 3.227 1.129.166 2.27.293 3.423.379.35.026.67.21.865.501L12 21l2.755-4.133a1.14 1.14 0 01.865-.501 48.172 48.172 0 003.423-.379c1.584-.233 2.707-1.626 2.707-3.228V6.741c0-1.602-1.123-2.995-2.707-3.228A48.394 48.394 0 0012 3c-2.392 0-4.744.175-7.043.513C3.373 3.746 2.25 5.14 2.25 6.741v6.018z" />
             </svg>
-            Text (LLM)
+            Текст (LLM)
           </button>
         </div>
       )}
@@ -209,17 +209,17 @@ export function FloatingActionBar() {
   return (
     <div className="fixed bottom-5 left-1/2 -translate-x-1/2 z-50">
       <div className="flex items-center gap-0.5 bg-neutral-800/95 backdrop-blur-sm rounded-lg shadow-lg border border-neutral-700/80 px-1.5 py-1">
-        <NodeButton type="imageInput" label="Image" />
-        <NodeButton type="annotation" label="Annotate" />
-        <NodeButton type="prompt" label="Prompt" />
+        <NodeButton type="imageInput" label="Изображение" />
+        <NodeButton type="annotation" label="Аннотация" />
+        <NodeButton type="prompt" label="Промпт" />
         <GenerateComboButton />
-        <NodeButton type="output" label="Output" />
+        <NodeButton type="output" label="Выход" />
 
         <div className="w-px h-5 bg-neutral-600 mx-1.5" />
 
         <button
           onClick={toggleEdgeStyle}
-          title={`Switch to ${edgeStyle === "angular" ? "curved" : "angular"} connectors`}
+          title={`Переключить на ${edgeStyle === "angular" ? "плавные" : "угловые"} соединители`}
           className="p-1.5 text-neutral-400 hover:text-neutral-100 hover:bg-neutral-700 rounded transition-colors"
         >
           {edgeStyle === "angular" ? (
@@ -239,7 +239,7 @@ export function FloatingActionBar() {
           <button
             onClick={handleRunClick}
             disabled={!valid && !isRunning}
-            title={!valid ? errors.join("\n") : isRunning ? "Stop" : "Run"}
+            title={!valid ? errors.join("\n") : isRunning ? "Остановить" : "Запуск"}
             className={`flex items-center gap-1.5 px-3 py-1.5 text-[11px] font-medium transition-colors ${
               isRunning
                 ? "bg-white text-neutral-900 hover:bg-neutral-200 rounded"
@@ -269,7 +269,7 @@ export function FloatingActionBar() {
                     d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
                   />
                 </svg>
-                <span>Stop</span>
+                <span>Остановить</span>
               </>
             ) : (
               <>
@@ -280,7 +280,7 @@ export function FloatingActionBar() {
                 >
                   <path d="M8 5v14l11-7z" />
                 </svg>
-                <span>Run</span>
+                <span>Запуск</span>
               </>
             )}
           </button>
@@ -290,7 +290,7 @@ export function FloatingActionBar() {
             <button
               onClick={() => setRunMenuOpen(!runMenuOpen)}
               className="flex items-center self-stretch px-1.5 rounded-r bg-white text-neutral-900 hover:bg-neutral-200 border-l border-neutral-200 transition-colors"
-              title="Run options"
+              title="Опции запуска"
             >
               <svg
                 className={`w-2.5 h-2.5 transition-transform ${runMenuOpen ? "rotate-180" : ""}`}
@@ -317,7 +317,7 @@ export function FloatingActionBar() {
                 <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24">
                   <path d="M8 5v14l11-7z" />
                 </svg>
-                Run entire workflow
+                Запустить весь граф
               </button>
               <button
                 onClick={handleRunFromSelected}
@@ -327,12 +327,12 @@ export function FloatingActionBar() {
                     ? "text-neutral-300 hover:bg-neutral-700 hover:text-neutral-100"
                     : "text-neutral-500 cursor-not-allowed"
                 }`}
-                title={!selectedNode ? "Select a single node first" : undefined}
+                title={!selectedNode ? "Сначала выберите одну ноду" : undefined}
               >
                 <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M13 5l7 7-7 7M5 5l7 7-7 7" />
                 </svg>
-                Run from selected node
+                Запустить от выбранной ноды
               </button>
               <button
                 onClick={handleRunSelectedOnly}
@@ -342,12 +342,12 @@ export function FloatingActionBar() {
                     ? "text-neutral-300 hover:bg-neutral-700 hover:text-neutral-100"
                     : "text-neutral-500 cursor-not-allowed"
                 }`}
-                title={!selectedNode ? "Select a single node first" : undefined}
+                title={!selectedNode ? "Сначала выберите одну ноду" : undefined}
               >
                 <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M5.25 5.653c0-.856.917-1.398 1.667-.986l11.54 6.347a1.125 1.125 0 010 1.972l-11.54 6.347a1.125 1.125 0 01-1.667-.986V5.653z" />
                 </svg>
-                Run selected node only
+                Запустить только выбранную ноду
               </button>
             </div>
           )}

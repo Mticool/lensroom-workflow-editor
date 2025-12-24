@@ -163,16 +163,17 @@ const createDefaultNodeData = (type: NodeType): WorkflowNodeData => {
       return {
         inputPrompt: null,
         outputText: null,
+        outputUrls: [],
         provider: "google",
         model: "gemini-3-flash-preview",
         temperature: 0.7,
         maxTokens: 8192,
+        outputsCount: 1,
         status: "idle",
         error: null,
       } as LLMGenerateNodeData;
     case "splitGrid":
       return {
-        sourceImage: null,
         targetCount: 6,
         defaultPrompt: "",
         generateSettings: {
@@ -933,7 +934,7 @@ export const useWorkflowStore = create<WorkflowStore>((set, get) => ({
           }
 
           case "llmGenerate": {
-            const { text } = getConnectedInputs(node.id);
+            const { text, images } = getConnectedInputs(node.id);
 
             if (!text) {
               updateNodeData(node.id, {
@@ -944,35 +945,41 @@ export const useWorkflowStore = create<WorkflowStore>((set, get) => ({
               return;
             }
 
+            const nodeData = node.data as LLMGenerateNodeData;
+            const batchCount = nodeData.outputsCount || 1;
+
+            // Set initial progress for batch generation
             updateNodeData(node.id, {
               inputPrompt: text,
               status: "loading",
               error: null,
+              progress: batchCount > 1 ? { done: 0, total: batchCount, failed: 0 } : undefined,
             });
 
             try {
-              const nodeData = node.data as LLMGenerateNodeData;
-              const response = await fetch("/api/llm", {
+              // Use new /api/infer endpoint
+              const response = await fetch("/api/infer", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
-                  prompt: text,
-                  provider: nodeData.provider,
-                  model: nodeData.model,
-                  temperature: nodeData.temperature,
-                  maxTokens: nodeData.maxTokens,
+                  modelId: nodeData.model,
+                  inputs: {
+                    prompt: text,
+                    imageUrl: nodeData.imageUrl, // For edit models (NanoBanana)
+                    images: images.length > 0 ? images : undefined,
+                  },
+                  params: {
+                    temperature: nodeData.temperature,
+                    maxTokens: nodeData.maxTokens,
+                  },
+                  outputsCount: nodeData.outputsCount || 1, // Batch generation support
                 }),
               });
 
-              if (!response.ok) {
-                const errorText = await response.text();
-                let errorMessage = `HTTP ${response.status}`;
-                try {
-                  const errorJson = JSON.parse(errorText);
-                  errorMessage = errorJson.error || errorMessage;
-                } catch {
-                  if (errorText) errorMessage += ` - ${errorText.substring(0, 200)}`;
-                }
+              const result = await response.json();
+
+              if (!response.ok || !result.success) {
+                const errorMessage = result.error || `HTTP ${response.status}`;
                 updateNodeData(node.id, {
                   status: "error",
                   error: errorMessage,
@@ -981,18 +988,35 @@ export const useWorkflowStore = create<WorkflowStore>((set, get) => ({
                 return;
               }
 
-              const result = await response.json();
+              // Handle different response types (text, image URLs, etc.)
+              if (result.urls && result.urls.length > 0) {
+                // For image models: save all URLs and use first for downstream
+                const finalProgress = batchCount > 1 && result.meta ? {
+                  done: result.meta.succeededCount || result.urls.length,
+                  total: batchCount,
+                  failed: result.meta.failedCount || 0,
+                } : undefined;
 
-              if (result.success && result.text) {
+                updateNodeData(node.id, {
+                  outputText: result.urls[0], // First URL for downstream compatibility
+                  outputUrls: result.urls, // All URLs for gallery display
+                  progress: finalProgress,
+                  status: "complete",
+                  error: null,
+                });
+              } else if (result.text) {
+                // For text models
                 updateNodeData(node.id, {
                   outputText: result.text,
+                  outputUrls: [],
+                  progress: undefined,
                   status: "complete",
                   error: null,
                 });
               } else {
                 updateNodeData(node.id, {
                   status: "error",
-                  error: result.error || "LLM generation failed",
+                  error: "No output received from model",
                 });
                 set({ isRunning: false, currentNodeId: null });
                 return;
@@ -1000,7 +1024,7 @@ export const useWorkflowStore = create<WorkflowStore>((set, get) => ({
             } catch (error) {
               updateNodeData(node.id, {
                 status: "error",
-                error: error instanceof Error ? error.message : "LLM generation failed",
+                error: error instanceof Error ? error.message : "Inference failed",
               });
               set({ isRunning: false, currentNodeId: null });
               return;
@@ -1009,74 +1033,24 @@ export const useWorkflowStore = create<WorkflowStore>((set, get) => ({
           }
 
           case "splitGrid": {
-            const { images } = getConnectedInputs(node.id);
-            const sourceImage = images[0] || null;
-
-            if (!sourceImage) {
-              updateNodeData(node.id, {
-                status: "error",
-                error: "No input image connected",
-              });
-              set({ isRunning: false, currentNodeId: null });
-              return;
-            }
-
             const nodeData = node.data as SplitGridNodeData;
 
             if (!nodeData.isConfigured) {
               updateNodeData(node.id, {
                 status: "error",
-                error: "Node not configured - open settings first",
+                error: "Нода не настроена - откройте настройки",
               });
               set({ isRunning: false, currentNodeId: null });
               return;
             }
 
-            updateNodeData(node.id, {
-              sourceImage,
-              status: "loading",
-              error: null,
+            // Split Grid node itself doesn't process anything during run
+            // It's a structural node that spawns child nodes (prompt + imageInput + generate)
+            // The actual generation happens in the child nodes
+            updateNodeData(node.id, { 
+              status: "complete", 
+              error: null 
             });
-
-            try {
-              // Import and use the grid splitter
-              const { splitWithDimensions } = await import("@/utils/gridSplitter");
-              const { images: splitImages } = await splitWithDimensions(
-                sourceImage,
-                nodeData.gridRows,
-                nodeData.gridCols
-              );
-
-              // Populate child imageInput nodes with split images
-              for (let index = 0; index < nodeData.childNodeIds.length; index++) {
-                const childSet = nodeData.childNodeIds[index];
-                if (splitImages[index]) {
-                  // Create a promise to get image dimensions
-                  await new Promise<void>((resolve) => {
-                    const img = new Image();
-                    img.onload = () => {
-                      updateNodeData(childSet.imageInput, {
-                        image: splitImages[index],
-                        filename: `split-${Math.floor(index / nodeData.gridCols) + 1}-${(index % nodeData.gridCols) + 1}.png`,
-                        dimensions: { width: img.width, height: img.height },
-                      });
-                      resolve();
-                    };
-                    img.onerror = () => resolve();
-                    img.src = splitImages[index];
-                  });
-                }
-              }
-
-              updateNodeData(node.id, { status: "complete", error: null });
-            } catch (error) {
-              updateNodeData(node.id, {
-                status: "error",
-                error: error instanceof Error ? error.message : "Failed to split image",
-              });
-              set({ isRunning: false, currentNodeId: null });
-              return;
-            }
             break;
           }
 
@@ -1472,7 +1446,7 @@ export const useWorkflowStore = create<WorkflowStore>((set, get) => ({
       useToast
         .getState()
         .show(
-          `Auto-save failed: ${error instanceof Error ? error.message : "Unknown error"}`,
+          `Не удалось сохранить: ${error instanceof Error ? error.message : "Неизвестная ошибка"}`,
           "error"
         );
       return false;

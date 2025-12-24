@@ -56,10 +56,10 @@ export function Header() {
         if (workflow.version && workflow.nodes && workflow.edges) {
           loadWorkflow(workflow);
         } else {
-          alert("Invalid workflow file format");
+          alert("Неверный формат файла workflow");
         }
       } catch {
-        alert("Failed to parse workflow file");
+        alert("Не удалось распарсить файл workflow");
       }
     };
     reader.readAsText(file);
@@ -96,7 +96,7 @@ export function Header() {
         <div className="flex items-center gap-2">
           <img src="/banana_icon.png" alt="Banana" className="w-6 h-6" />
           <h1 className="text-2xl font-semibold text-neutral-100 tracking-tight">
-            Node Banana
+            LensRoom Workflow
           </h1>
 
           <div className="flex items-center gap-2 ml-4 pl-4 border-l border-neutral-700">
@@ -107,7 +107,7 @@ export function Header() {
                   onClick={() => canSave ? saveToFile() : handleOpenSettings()}
                   disabled={isSaving}
                   className="relative p-1 text-neutral-400 hover:text-neutral-200 transition-colors disabled:opacity-50"
-                  title={isSaving ? "Saving..." : canSave ? "Save project" : "Configure save location"}
+                  title={isSaving ? "Сохранение..." : canSave ? "Сохранить проект" : "Настроить место сохранения"}
                 >
                   <svg
                     className="w-4 h-4"
@@ -129,7 +129,7 @@ export function Header() {
                 <button
                   onClick={handleOpenSettings}
                   className="p-1 text-neutral-400 hover:text-neutral-200 transition-colors"
-                  title="Project settings"
+                  title="Настройки проекта"
                 >
                   <svg
                     className="w-4 h-4"
@@ -157,14 +157,14 @@ export function Header() {
                   onClick={handleNewProject}
                   className="text-neutral-400 hover:text-neutral-200 transition-colors"
                 >
-                  Save Project
+                  Сохранить проект
                 </button>
                 <span className="text-neutral-500">·</span>
                 <button
                   onClick={handleOpenFile}
                   className="text-neutral-400 hover:text-neutral-200 transition-colors"
                 >
-                  Open
+                  Открыть
                 </button>
               </div>
             )}
@@ -176,11 +176,11 @@ export function Header() {
             <>
               <span className="text-neutral-400">
                 {isSaving ? (
-                  "Saving..."
+                  "Сохранение..."
                 ) : lastSavedAt ? (
-                  `Saved ${formatTime(lastSavedAt)}`
+                  `Сохранено ${formatTime(lastSavedAt)}`
                 ) : (
-                  "Not saved"
+                  "Не сохранено"
                 )}
               </span>
               <span className="text-neutral-500">·</span>
@@ -188,19 +188,10 @@ export function Header() {
                 onClick={handleOpenFile}
                 className="text-neutral-400 hover:text-neutral-200 transition-colors"
               >
-                Open
+                Открыть
               </button>
             </>
           )}
-          <span className="text-neutral-500 ml-2">·</span>
-          <a
-            href="https://x.com/ReflctWillie"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-neutral-400 hover:text-neutral-200 transition-colors"
-          >
-            Made by Willie
-          </a>
         </div>
       </header>
     </>

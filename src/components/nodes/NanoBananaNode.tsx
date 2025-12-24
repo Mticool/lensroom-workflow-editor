@@ -75,7 +75,7 @@ export function NanoBananaNode({ id, data, selected }: NodeProps<NanoBananaNodeT
   return (
     <BaseNode
       id={id}
-      title="Generate"
+      title="Генерация"
       selected={selected}
       hasError={nodeData.status === "error"}
     >
@@ -142,7 +142,7 @@ export function NanoBananaNode({ id, data, selected }: NodeProps<NanoBananaNodeT
                 onClick={handleRegenerate}
                 disabled={isRunning}
                 className="w-5 h-5 bg-neutral-900/80 hover:bg-blue-600/80 disabled:opacity-50 disabled:cursor-not-allowed rounded flex items-center justify-center text-neutral-400 hover:text-white transition-colors"
-                title="Regenerate"
+                title="Перегенерировать"
               >
                 <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
@@ -151,7 +151,7 @@ export function NanoBananaNode({ id, data, selected }: NodeProps<NanoBananaNodeT
               <button
                 onClick={handleClearImage}
                 className="w-5 h-5 bg-neutral-900/80 hover:bg-red-600/80 rounded flex items-center justify-center text-neutral-400 hover:text-white transition-colors"
-                title="Clear image"
+                title="Очистить изображение"
               >
                 <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
@@ -183,28 +183,42 @@ export function NanoBananaNode({ id, data, selected }: NodeProps<NanoBananaNodeT
               </svg>
             ) : nodeData.status === "error" ? (
               <span className="text-[10px] text-red-400 text-center px-2">
-                {nodeData.error || "Failed"}
+                {nodeData.error || "Ошибка"}
               </span>
             ) : (
               <span className="text-neutral-500 text-[10px]">
-                Run to generate
+                Нажмите «Запуск», чтобы сгенерировать
               </span>
             )}
           </div>
         )}
 
         {/* Model selector */}
-        <select
-          value={nodeData.model}
-          onChange={handleModelChange}
-          className="w-full text-[10px] py-1 px-1.5 border border-neutral-700 rounded bg-neutral-900/50 focus:outline-none focus:ring-1 focus:ring-neutral-600 text-neutral-300 shrink-0"
-        >
-          {MODELS.map((m) => (
-            <option key={m.value} value={m.value}>
-              {m.label}
-            </option>
-          ))}
-        </select>
+        <div className="flex items-center gap-2 shrink-0">
+          <select
+            value={nodeData.model}
+            onChange={handleModelChange}
+            className="flex-1 text-[10px] py-1 px-1.5 border border-neutral-700 rounded bg-neutral-900/50 focus:outline-none focus:ring-1 focus:ring-neutral-600 text-neutral-300"
+          >
+            {MODELS.map((m) => (
+              <option key={m.value} value={m.value}>
+                {m.label}
+              </option>
+            ))}
+          </select>
+          {isNanoBananaPro && (
+            <span className="px-1.5 py-0.5 text-[8px] font-semibold bg-gradient-to-r from-blue-500 to-purple-500 text-white rounded shrink-0">
+              PRO
+            </span>
+          )}
+        </div>
+        
+        {/* Model description */}
+        <div className="text-[9px] text-neutral-500 shrink-0 -mt-1">
+          {isNanoBananaPro 
+            ? "Редактирование изображения (Pro)" 
+            : "Редактирование изображения"}
+        </div>
 
         {/* Aspect ratio and resolution row */}
         <div className="flex gap-1.5 shrink-0">
@@ -243,7 +257,7 @@ export function NanoBananaNode({ id, data, selected }: NodeProps<NanoBananaNodeT
               onChange={handleGoogleSearchToggle}
               className="w-3 h-3 rounded border-neutral-700 bg-neutral-900/50 text-neutral-600 focus:ring-1 focus:ring-neutral-600 focus:ring-offset-0"
             />
-            <span>Google Search</span>
+            <span>Поиск Google</span>
           </label>
         )}
       </div>

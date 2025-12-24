@@ -1,79 +1,111 @@
-# Node Banana - Development Guide
+# Claude/Cursor Project Rules
 
-## Model
-The application uses these models for image generation. These models are very recently released and do exist. 
-gemini-3-pro-image-preview
-gemini-2.5-flash-preview-image-generation
+**⚠️ BEFORE ANY CHANGES: Read `docs/LENSROOM_INTEGRATION_CONTRACT.md`**
 
+---
 
+## 🚨 Critical Invariants (DO NOT VIOLATE)
 
-## Node Connection System
+### 1. Credits System
+- ✅ ONLY use `public.credits` and `public.credit_transactions`
+- ✅ ALL balance changes via `adjust_credits()` RPC
+- ❌ NEVER create alternative balance tables
+- ❌ NEVER manually UPDATE credits table
 
-### Handle Types
+### 2. Authentication
+- ✅ ONLY use `getUserId()` from `src/lib/auth/getUserId.ts`
+- ✅ Return 401 if no valid session
+- ❌ NEVER trust client-provided user_id
+- ❌ NEVER create new auth system
 
-Nodes communicate through typed handles. Each handle has a **data type** that determines what connections are valid.
+### 3. Storage
+- ✅ ONLY use Supabase Storage bucket `"generations"`
+- ✅ Path: `{userId}/{type}/{generationId}.ext`
+- ✅ Upload before returning to client
+- ❌ NEVER return temporary URLs from AI providers
 
-| Handle Type | Data Format | Description |
-|-------------|-------------|-------------|
-| `image` | Base64 data URL | Visual content (photos, generated images, annotated images) |
-| `text` | String | Text content (user prompts, LLM outputs, transformed text) |
+### 4. Generations
+- ✅ Create record BEFORE charging credits
+- ✅ Update status: processing → success/failed
+- ✅ Link to credit_transactions via generation_id
+- ❌ NEVER skip generation record
 
-### Connection Rules
+### 5. API Keys
+- ✅ Keep on server only (`SUPABASE_SERVICE_ROLE_KEY`, `KIE_API_KEY`)
+- ❌ NEVER use `NEXT_PUBLIC_*` for secrets
+- ❌ NEVER expose to client
 
-1. **Type Matching**: Handles can only connect to handles of the same type
-   - `image` → `image` (valid)
-   - `text` → `text` (valid)
-   - `image` → `text` (invalid)
+### 6. UI/UX
+- ❌ NEVER redesign workflow editor without explicit request
+- ❌ NEVER change node behavior
+- ❌ NEVER remove existing features
 
-2. **Direction**: Connections flow from `source` (output) to `target` (input)
+### 7. Database
+- ✅ ONLY add new migrations, never modify existing
+- ❌ NEVER change credits/generations schema without approval
+- ❌ NEVER bypass RPC functions
 
-3. **Multiplicity**:
-   - Image inputs on generation nodes accept multiple connections (for multi-image context)
-   - Text inputs accept single connections (last connected wins)
+### 8. Models
+- ✅ ONLY use `src/config/modelRegistry.ts` as source of truth
+- ✅ UI loads from `/api/models` endpoint
+- ❌ NEVER hardcode models in components
 
-### Data Flow in `getConnectedInputs`
+---
 
-When a node executes, it retrieves connected inputs via `getConnectedInputs(nodeId)` in `workflowStore.ts`. This function returns `{ images: string[], text: string | null }`.
+## 📋 Before Making Changes
 
-**For `image` handles, extract from:**
-- `imageInput` → `data.image`
-- `annotation` → `data.outputImage`
-- `nanoBanana` → `data.outputImage`
+1. Read `docs/LENSROOM_INTEGRATION_CONTRACT.md`
+2. Check which component you're modifying
+3. Verify it's within editor's responsibility
+4. Run `npm run verify:integration` after changes
 
-**For `text` handles, extract from:**
-- `prompt` → `data.prompt`
-- `llmGenerate` → `data.outputText`
+---
 
-### Adding New Node Types
+## 🔍 Quick Reference
 
-When creating a new node type:
+### Responsibility Matrix
 
-1. **Define the data interface** in `src/types/index.ts`
-2. **Add to `NodeType` union** in `src/types/index.ts`
-3. **Create default data** in `createDefaultNodeData()` in `workflowStore.ts`
-4. **Add dimensions** to `defaultDimensions` in `workflowStore.ts`
-5. **Create the component** in `src/components/nodes/`
-6. **Export from** `src/components/nodes/index.ts`
-7. **Register in nodeTypes** in `WorkflowCanvas.tsx`
-8. **Add minimap color** in `WorkflowCanvas.tsx`
-9. **Update `getConnectedInputs`** if the node produces output that other nodes consume
-10. **Add execution logic** in `executeWorkflow()` if the node requires processing
-11. **Update `ConnectionDropMenu.tsx`** to include the node in appropriate source/target lists
+| Component | Editor Owns | LensRoom Owns |
+|-----------|-------------|---------------|
+| Workflow UI | ✅ | ❌ |
+| `/api/infer` | ✅ | ❌ |
+| Auth/Sessions | ❌ | ✅ |
+| Credits | ❌ | ✅ |
+| Storage | ❌ | ✅ |
+| Database | ❌ | ✅ |
 
-### Handle Naming Convention
+### When in Doubt
 
-Use descriptive handle IDs that match the data type:
-- `id="image"` for image data
-- `id="text"` for text data
+**ASK YOURSELF:**
+- Does this create a new balance table? → ❌ DON'T
+- Does this bypass `adjust_credits()`? → ❌ DON'T
+- Does this expose API keys? → ❌ DON'T
+- Does this change existing migrations? → ❌ DON'T
+- Does this break integration contract? → ❌ DON'T
 
-Future handle types might include:
-- `audio` - for audio data
-- `video` - for video data
-- `json` - for structured data
-- `number` - for numeric values
+**IF UNSURE:** Read the contract, check with user
 
-### Validation
+---
 
-Connection validation happens in `isValidConnection()` in `WorkflowCanvas.tsx`. Update this function if adding new handle types with specific rules.
+## ✅ Verification
 
-Workflow validation happens in `validateWorkflow()` in `workflowStore.ts`. Add checks for required inputs on new node types.
+After ANY changes:
+
+```bash
+npm run verify:integration
+```
+
+Must show: `✅ ALL CHECKS PASSED`
+
+---
+
+## 📚 Full Documentation
+
+- **Integration Contract:** `docs/LENSROOM_INTEGRATION_CONTRACT.md`
+- **Supabase Setup:** `docs/SUPABASE_SETUP.md`
+- **SQL Generator:** `docs/SQL_GENERATOR.md`
+- **Production Ready:** `PRODUCTION_READY.md`
+
+---
+
+**Remember: This editor is part of LensRoom ecosystem. Integration contract is binding.**

@@ -78,7 +78,7 @@ export function ImageInputNode({ id, data, selected }: NodeProps<ImageInputNodeT
   }, [id, updateNodeData]);
 
   return (
-    <BaseNode id={id} title="Image" selected={selected}>
+    <BaseNode id={id} title="Изображение" selected={selected}>
       {/* Reference input handle for visual links from Split Grid node */}
       <Handle
         type="target"
@@ -100,7 +100,7 @@ export function ImageInputNode({ id, data, selected }: NodeProps<ImageInputNodeT
         <div className="relative group flex-1 flex flex-col min-h-0">
           <img
             src={nodeData.image}
-            alt={nodeData.filename || "Uploaded image"}
+            alt={nodeData.filename || "Загруженное изображение"}
             className="w-full flex-1 min-h-0 object-contain rounded"
           />
           <button
@@ -133,7 +133,7 @@ export function ImageInputNode({ id, data, selected }: NodeProps<ImageInputNodeT
             <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
           </svg>
           <span className="text-[10px] text-neutral-400 mt-1">
-            Drop or click
+            Перетащите или нажмите
           </span>
         </div>
       )}

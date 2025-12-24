@@ -51,7 +51,7 @@ export function ProjectSetupModal({
       const result = await response.json();
 
       if (!result.success) {
-        setError(result.error || "Failed to open directory picker");
+        setError(result.error || "Не удалось открыть выбор папки");
         return;
       }
 
@@ -64,7 +64,7 @@ export function ProjectSetupModal({
       }
     } catch (err) {
       setError(
-        `Failed to open directory picker: ${err instanceof Error ? err.message : "Unknown error"}`
+        `Не удалось открыть выбор папки: ${err instanceof Error ? err.message : "Неизвестная ошибка"}`
       );
     } finally {
       setIsBrowsing(false);
@@ -129,7 +129,7 @@ export function ProjectSetupModal({
       setIsValidating(false);
     } catch (err) {
       setError(
-        `Failed to validate directories: ${err instanceof Error ? err.message : "Unknown error"}`
+        `Не удалось проверить папки: ${err instanceof Error ? err.message : "Неизвестная ошибка"}`
       );
       setIsValidating(false);
     }

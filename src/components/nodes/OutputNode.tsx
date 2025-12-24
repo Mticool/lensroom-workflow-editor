@@ -24,7 +24,7 @@ export function OutputNode({ id, data, selected }: NodeProps<OutputNodeType>) {
 
   return (
     <>
-      <BaseNode id={id} title="Output" selected={selected} className="min-w-[200px]">
+      <BaseNode id={id} title="Выход" selected={selected} className="min-w-[200px]">
         <Handle
           type="target"
           position={Position.Left}
@@ -45,7 +45,7 @@ export function OutputNode({ id, data, selected }: NodeProps<OutputNodeType>) {
               />
               <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors flex items-center justify-center rounded">
                 <span className="text-[10px] font-medium text-white opacity-0 group-hover:opacity-100 transition-opacity bg-black/50 px-2 py-1 rounded">
-                  View full size
+                  Открыть в полный размер
                 </span>
               </div>
             </div>
@@ -53,12 +53,12 @@ export function OutputNode({ id, data, selected }: NodeProps<OutputNodeType>) {
               onClick={handleDownload}
               className="w-full py-1.5 bg-white hover:bg-neutral-200 text-neutral-900 text-[10px] font-medium rounded transition-colors shrink-0"
             >
-              Download
+              Скачать
             </button>
           </div>
         ) : (
           <div className="w-full flex-1 min-h-[144px] border border-dashed border-neutral-600 rounded flex items-center justify-center">
-            <span className="text-neutral-500 text-[10px]">Waiting for image</span>
+            <span className="text-neutral-500 text-[10px]">Ожидание изображения</span>
           </div>
         )}
       </BaseNode>

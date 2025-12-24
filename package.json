@@ -1,15 +1,26 @@
 {
-  "name": "node-banana",
+  "name": "lensroom-workflow-editor",
   "version": "1.0.0",
   "private": true,
+  "description": "LensRoom Workflow Editor - Node-based AI workflow application for clients",
   "scripts": {
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "ui:audit": "tsx scripts/uiAudit.ts",
+    "smoke": "tsx scripts/smoke.ts",
+    "db:smoke": "tsx scripts/smokeSupabase.ts",
+    "db:test": "tsx scripts/quickTest.ts",
+    "sql:topup:tg": "tsx scripts/genSqlTopup.ts --telegram 250474388 --amount 100",
+    "sql:topup:user": "tsx scripts/genSqlTopup.ts --user 1a13c194-06ce-4d18-8b36-b9eaf0a5d5d3 --amount 100",
+    "sql:topup": "tsx scripts/genSqlTopup.ts",
+    "verify:integration": "tsx scripts/verifyIntegration.ts"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.71.2",
     "@google/genai": "^1.30.0",
+    "@supabase/supabase-js": "^2.89.0",
     "@tailwindcss/postcss": "^4.1.17",
     "@xyflow/react": "^12.9.3",
     "autoprefixer": "^10.4.22",
@@ -26,6 +37,8 @@
     "@types/node": "^24.10.1",
     "@types/react": "^19.2.7",
     "@types/react-dom": "^19.2.3",
+    "dotenv": "^17.2.3",
+    "tsx": "^4.19.2",
     "typescript": "^5.9.3"
   }
 }

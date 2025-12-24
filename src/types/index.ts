@@ -131,16 +131,22 @@ export interface NanoBananaNodeData extends BaseNodeData {
   error: string | null;
 }
 
-// LLM Generate Node Data (Text Generation)
+// LLM Generate Node Data (Text Generation & Image Generation)
 export interface LLMGenerateNodeData extends BaseNodeData {
   inputPrompt: string | null;
   outputText: string | null;
+  outputUrls?: string[]; // For batch generation: all result URLs
   provider: LLMProvider;
   model: LLMModelType;
   temperature: number;
   maxTokens: number;
+  outputsCount?: number; // Batch generation: number of variants (1-10)
+  progress?: { done: number; total: number; failed?: number }; // Batch progress
   status: NodeStatus;
   error: string | null;
+  // For image edit models (NanoBanana Edit)
+  imageUrl?: string;
+  uploadedFileName?: string;
 }
 
 // Output Node Data
@@ -148,9 +154,8 @@ export interface OutputNodeData extends BaseNodeData {
   image: string | null;
 }
 
-// Split Grid Node Data (Utility Node)
+// Split Grid Node Data (Structural Node - spawns N generation sets)
 export interface SplitGridNodeData extends BaseNodeData {
-  sourceImage: string | null;
   targetCount: number;  // 4, 6, 8, 9, or 10
   defaultPrompt: string;
   generateSettings: {
