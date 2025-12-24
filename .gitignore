@@ -42,3 +42,4 @@ renders/
 
 # Large template files (upload to Supabase Storage instead)
 examples/contact-sheet-*.json
+.local/

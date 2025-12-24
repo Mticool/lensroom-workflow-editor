@@ -7,6 +7,8 @@ examples/contact-sheet-ChrisWalkman.json
 examples/contact-sheet-billsSupra.json
 examples/contact-sheet-tim.json
 examples/contact-sheet-jpow.json
+.local/
+.local/**
 
 # If you need templates, upload them to Supabase Storage
 # and configure URLs in src/config/workflowTemplates.ts
