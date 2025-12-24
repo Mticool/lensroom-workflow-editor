@@ -1,6 +1,12 @@
 # Exclude large example files from Vercel deployment
 # These files total 269MB and exceed Vercel's 250MB limit
+examples/
+examples/**
 examples/contact-sheet-*.json
+examples/contact-sheet-ChrisWalkman.json
+examples/contact-sheet-billsSupra.json
+examples/contact-sheet-tim.json
+examples/contact-sheet-jpow.json
 
 # If you need templates, upload them to Supabase Storage
 # and configure URLs in src/config/workflowTemplates.ts
