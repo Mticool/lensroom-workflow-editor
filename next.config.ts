@@ -8,11 +8,24 @@ const nextConfig: NextConfig = {
     },
   },
   // Exclude large files from serverless function output tracing
+  // This prevents examples/ files from being included in serverless bundles
   outputFileTracingExcludes: {
     "*": [
       "./examples/**/*",
       "./.local/**/*",
       "node_modules/@swc/core-*/**/*",
+      "**/examples/**",
+      "**/.local/**",
+      "examples/contact-sheet-*.json",
+      ".local/contact-sheet-*.json",
+      // Explicitly exclude for api/workflow route
+      "examples/**",
+      ".local/**",
+    ],
+    // Specific exclusions for api/workflow.js
+    "api/workflow": [
+      "./examples/**/*",
+      "./.local/**/*",
       "**/examples/**",
       "**/.local/**",
       "examples/contact-sheet-*.json",
