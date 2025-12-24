@@ -1,6 +1,6 @@
 {
   "buildCommand": "npm run build",
-  "ignoreCommand": "git diff --quiet HEAD^ HEAD ./examples/",
+  "ignoreCommand": "git diff --quiet HEAD^ HEAD ./examples/ && git diff --quiet HEAD^ HEAD ./.local/",
   "functions": {
     "api/workflow.js": {
       "maxDuration": 10
