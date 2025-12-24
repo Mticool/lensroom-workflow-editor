@@ -12,4 +12,3 @@ examples/contact-sheet-jpow.json
 
 # If you need templates, upload them to Supabase Storage
 # and configure URLs in src/config/workflowTemplates.ts
-
