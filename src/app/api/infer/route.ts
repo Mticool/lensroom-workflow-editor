@@ -64,7 +64,18 @@ export async function POST(request: NextRequest) {
 
   try {
     // 1. AUTH: Get user ID (may be null in fallback mode)
-    userId = await getUserId(request);
+    try {
+      userId = await getUserId(request);
+    } catch (authError) {
+      // If getUserId fails due to missing Supabase env vars and we're in fallback mode, continue
+      if (supabaseOptional && authError instanceof Error && authError.message.includes("NEXT_PUBLIC_SUPABASE_URL")) {
+        console.warn(`[API:infer:${requestId}] ⚠️ Auth failed (Supabase not configured), but INFER_SUPABASE_OPTIONAL=true - continuing without userId`);
+        userId = null;
+      } else {
+        // Re-throw if not a Supabase config error or not in fallback mode
+        throw authError;
+      }
+    }
 
     // DEV MODE: Fallback to TEST_USER_ID if no session
     if (!userId) {

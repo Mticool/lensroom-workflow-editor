@@ -35,7 +35,21 @@ export async function getUserId(request: NextRequest): Promise<string | null> {
     return testUserId;
   }
   
-  const supabase = getServiceSupabase();
+  // Check if Supabase is available (fallback mode support)
+  const supabaseOptional = process.env.INFER_SUPABASE_OPTIONAL === "true";
+  let supabase;
+  
+  try {
+    supabase = getServiceSupabase();
+  } catch (error) {
+    if (supabaseOptional) {
+      // In fallback mode, if Supabase is not configured, just return null
+      console.warn("[Auth] Supabase not configured, but INFER_SUPABASE_OPTIONAL=true - skipping auth");
+      return null;
+    }
+    // In strict mode, re-throw the error
+    throw error;
+  }
 
   // Method 1: Try lr_session JWT cookie
   const lrSessionCookie = request.cookies.get("lr_session");
