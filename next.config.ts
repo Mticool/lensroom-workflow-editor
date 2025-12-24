@@ -11,14 +11,6 @@ const nextConfig: NextConfig = {
     "*": [
       "**/examples/**",
       "**/.local/**",
-      "**/examples/**/*",
-      "**/.local/**/*",
-    ],
-    "api/workflow": [
-      "**/examples/**",
-      "**/.local/**",
-      "**/examples/**/*",
-      "**/.local/**/*",
     ],
   },
   typescript: {
