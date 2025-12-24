@@ -174,17 +174,30 @@ const findScrollableAncestor = (target: HTMLElement, deltaX: number, deltaY: num
 export function WorkflowCanvas() {
   const { nodes, edges, groups, onNodesChange, onEdgesChange, onConnect, addNode, updateNodeData, loadWorkflow, getNodeById, addToGlobalHistory, setNodeGroupId } =
     useWorkflowStore();
-  const { screenToFlowPosition, getViewport, zoomIn, zoomOut, setViewport } = useReactFlow();
+  const { screenToFlowPosition, getViewport, zoomIn, zoomOut, setViewport, fitView } = useReactFlow();
   const [isDragOver, setIsDragOver] = useState(false);
   const [dropType, setDropType] = useState<"image" | "workflow" | "node" | null>(null);
   const [connectionDrop, setConnectionDrop] = useState<ConnectionDropState | null>(null);
   const [isSplitting, setIsSplitting] = useState(false);
   const reactFlowWrapper = useRef<HTMLDivElement>(null);
+  const hasInitializedViewport = useRef(false);
 
   // Just pass regular nodes to React Flow - groups are rendered separately
   const allNodes = useMemo(() => {
     return nodes;
   }, [nodes]);
+
+  // One-time viewport initialization: fit view on first load only
+  useEffect(() => {
+    if (!hasInitializedViewport.current && nodes.length > 0) {
+      // Wait a tick for nodes to render, then fit view once
+      const timer = setTimeout(() => {
+        fitView({ padding: 0.15, duration: 0, maxZoom: 0.9 });
+        hasInitializedViewport.current = true;
+      }, 100);
+      return () => clearTimeout(timer);
+    }
+  }, [nodes.length, fitView]);
 
 
   // Check if a node was dropped into a group and add it to that group
@@ -1046,7 +1059,6 @@ export function WorkflowCanvas() {
         nodeTypes={nodeTypes}
         edgeTypes={edgeTypes}
         isValidConnection={isValidConnection}
-        fitView
         deleteKeyCode={["Backspace", "Delete"]}
         multiSelectionKeyCode="Shift"
         selectionOnDrag={isMacOS}
@@ -1057,7 +1069,7 @@ export function WorkflowCanvas() {
         zoomOnPinch={true}
         minZoom={0.1}
         maxZoom={4}
-        defaultViewport={{ x: 0, y: 0, zoom: 1 }}
+        defaultViewport={{ x: 0, y: 0, zoom: 0.88 }}
         panActivationKeyCode="Space"
         onWheel={handleWheel}
         className="bg-neutral-900"

@@ -299,7 +299,7 @@ export const useWorkflowStore = create<WorkflowStore>((set, get) => ({
     const defaultDimensions: Record<NodeType, { width: number; height: number }> = {
       imageInput: { width: 300, height: 280 },
       annotation: { width: 300, height: 280 },
-      prompt: { width: 320, height: 220 },
+      prompt: { width: 340, height: 200 },
       nanoBanana: { width: 300, height: 300 },
       llmGenerate: { width: 320, height: 360 },
       splitGrid: { width: 300, height: 320 },
@@ -495,7 +495,7 @@ export const useWorkflowStore = create<WorkflowStore>((set, get) => ({
     const defaultNodeDimensions: Record<string, { width: number; height: number }> = {
       imageInput: { width: 300, height: 280 },
       annotation: { width: 300, height: 280 },
-      prompt: { width: 320, height: 220 },
+      prompt: { width: 340, height: 200 },
       nanoBanana: { width: 300, height: 300 },
       llmGenerate: { width: 320, height: 360 },
       splitGrid: { width: 300, height: 320 },

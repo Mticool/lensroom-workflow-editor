@@ -25,7 +25,7 @@ export function PromptNode({ id, data, selected }: NodeProps<PromptNodeType>) {
         value={nodeData.prompt}
         onChange={handleChange}
         placeholder="Опишите, что нужно сгенерировать..."
-        className="nodrag nopan nowheel w-full flex-1 min-h-[70px] p-2 text-xs leading-relaxed text-neutral-100 border border-neutral-700 rounded bg-neutral-900/50 resize-none focus:outline-none focus:ring-1 focus:ring-neutral-600 focus:border-neutral-600 placeholder:text-neutral-500"
+        className="nodrag nopan nowheel w-full flex-1 min-h-[90px] max-h-[200px] p-1.5 text-[11px] leading-snug text-neutral-100 border border-neutral-700 rounded bg-neutral-900/50 resize-none focus:outline-none focus:ring-1 focus:ring-neutral-600 focus:border-neutral-600 placeholder:text-neutral-500"
       />
 
       <Handle
