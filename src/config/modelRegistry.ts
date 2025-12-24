@@ -88,7 +88,7 @@ export const MODEL_REGISTRY: ModelDef[] = [
   // Image Edit Models
   {
     id: "nano_banana_edit",
-    title: "Nano Banana Edit (Image)",
+    title: "Nano Banana (Edit)",
     provider: "kie-market",
     capability: "edit",
     enabled: true,
@@ -96,15 +96,36 @@ export const MODEL_REGISTRY: ModelDef[] = [
     kieModel: "google/nano-banana-edit",
     kieProvider: "market",
     paramsSchema: {
-      image_size: {
+      aspectRatio: {
         type: "string",
         default: "1:1",
-        options: ["1:1", "16:9", "9:16", "4:3", "3:4"],
+        options: ["1:1", "2:3", "3:2", "3:4", "4:3", "4:5", "5:4", "9:16", "16:9", "21:9"],
       },
-      output_format: {
+    },
+  },
+  {
+    id: "nano_banana_pro_edit",
+    title: "Nano Banana Pro (Edit)",
+    provider: "kie-market",
+    capability: "edit",
+    enabled: true,
+    creditCost: 10,
+    kieModel: "google/nano-banana-pro-edit",
+    kieProvider: "market",
+    paramsSchema: {
+      aspectRatio: {
         type: "string",
-        default: "png",
-        options: ["png", "jpg"],
+        default: "1:1",
+        options: ["1:1", "2:3", "3:2", "3:4", "4:3", "4:5", "5:4", "9:16", "16:9", "21:9"],
+      },
+      resolution: {
+        type: "string",
+        default: "1K",
+        options: ["1K", "2K", "4K"],
+      },
+      useGoogleSearch: {
+        type: "boolean",
+        default: false,
       },
     },
   },

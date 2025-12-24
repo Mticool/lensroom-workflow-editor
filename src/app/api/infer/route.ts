@@ -266,9 +266,9 @@ export async function POST(request: NextRequest) {
 
     if (!kieApiKey) {
       console.error(`[API:infer:${requestId}] ❌ KIE_API_KEY missing`);
-      await updateGenerationFailed(generationId, "KIE_API_KEY not configured");
+      await updateGenerationFailed(generationId, "Не настроен провайдер. Проверьте KIE_API_KEY в окружении.");
       return NextResponse.json<InferResponse>(
-        { success: false, error: "KIE_API_KEY not configured" },
+        { success: false, error: "Не настроен провайдер. Проверьте KIE_API_KEY в окружении." },
         { status: 500 }
       );
     }
@@ -290,14 +290,28 @@ export async function POST(request: NextRequest) {
           kieInput.image_size = params.image_size || "square_hd";
           kieInput.guidance_scale = 2.5;
           kieInput.enable_safety_checker = true;
-        } else if (modelId === "nano_banana_edit") {
-          // Nano Banana Edit requires imageUrl
+        } else if (modelId === "nano_banana_edit" || modelId === "nano_banana_pro_edit") {
+          // Nano Banana Edit/Pro requires imageUrl
           if (!inputs.imageUrl) {
-            throw new Error("imageUrl is required for nano_banana_edit");
+            console.error(`[API:infer:${requestId}] ❌ Missing imageUrl for edit model`);
+            await updateGenerationFailed(generationId, "Подключите входное изображение");
+            return NextResponse.json<InferResponse>(
+              { success: false, error: "Подключите входное изображение" },
+              { status: 400 }
+            );
           }
           kieInput.image_urls = [inputs.imageUrl];
-          kieInput.image_size = params.image_size || "1:1";
-          kieInput.output_format = params.output_format || "png";
+          kieInput.aspectRatio = params.aspectRatio || "1:1";
+          
+          // Pro-only features
+          if (modelId === "nano_banana_pro_edit") {
+            if (params.resolution) {
+              kieInput.resolution = params.resolution;
+            }
+            if (params.useGoogleSearch) {
+              kieInput.tools = [{ googleSearch: {} }];
+            }
+          }
         }
 
         return await inferMarket(kieApiKey, model.kieModel!, kieInput);
