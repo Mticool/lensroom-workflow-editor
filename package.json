@@ -11,6 +11,7 @@
     "ui:audit": "tsx scripts/uiAudit.ts",
     "smoke": "tsx scripts/smoke.ts",
     "smoke:fallback": "tsx scripts/smokeFallback.ts",
+    "test:kie": "tsx scripts/testKieApi.ts",
     "db:smoke": "tsx scripts/smokeSupabase.ts",
     "db:test": "tsx scripts/quickTest.ts",
     "sql:topup:tg": "tsx scripts/genSqlTopup.ts --telegram 250474388 --amount 100",
