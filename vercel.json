@@ -1,6 +1,6 @@
 {
   "buildCommand": "npm run build",
-  "ignoreCommand": "git diff --quiet HEAD^ HEAD ./examples/ && git diff --quiet HEAD^ HEAD ./.local/",
+  "ignoreCommand": "test ! -d ./examples/ && test ! -d ./.local/ || (git diff --quiet HEAD^ HEAD ./examples/ 2>/dev/null || true) && (git diff --quiet HEAD^ HEAD ./.local/ 2>/dev/null || true)",
   "functions": {
     "api/**": {
       "excludeFiles": "{examples,.local}/**/*.json"
