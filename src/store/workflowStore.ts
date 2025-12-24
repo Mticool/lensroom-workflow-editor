@@ -820,7 +820,7 @@ export const useWorkflowStore = create<WorkflowStore>((set, get) => ({
             if (images.length === 0 || !text) {
               updateNodeData(node.id, {
                 status: "error",
-                error: "Missing image or text input",
+                error: "Подключите изображение и текст",
               });
               set({ isRunning: false, currentNodeId: null });
               return;
@@ -836,16 +836,34 @@ export const useWorkflowStore = create<WorkflowStore>((set, get) => ({
             try {
               const nodeData = node.data as NanoBananaNodeData;
 
-              const requestPayload = {
-                images,
-                prompt: text,
+              // Map old model names to new modelIds
+              const modelMap: Record<string, string> = {
+                "nano-banana": "nano_banana_edit",
+                "nano-banana-pro": "nano_banana_pro_edit",
+              };
+              const modelId = modelMap[nodeData.model] || "nano_banana_edit";
+
+              // Build params
+              const params: Record<string, any> = {
                 aspectRatio: nodeData.aspectRatio,
-                resolution: nodeData.resolution,
-                model: nodeData.model,
-                useGoogleSearch: nodeData.useGoogleSearch,
               };
 
-              const response = await fetch("/api/generate", {
+              if (nodeData.model === "nano-banana-pro") {
+                params.resolution = nodeData.resolution;
+                params.useGoogleSearch = nodeData.useGoogleSearch;
+              }
+
+              const requestPayload = {
+                modelId,
+                inputs: {
+                  prompt: text,
+                  imageUrl: images[0], // Use first image
+                },
+                params,
+                outputsCount: 1,
+              };
+
+              const response = await fetch("/api/infer", {
                 method: "POST",
                 headers: {
                   "Content-Type": "application/json",
@@ -873,17 +891,18 @@ export const useWorkflowStore = create<WorkflowStore>((set, get) => ({
 
               const result = await response.json();
 
-              if (result.success && result.image) {
+              if (result.success && result.urls && result.urls.length > 0) {
+                const outputImage = result.urls[0];
                 // Save the newly generated image to global history
                 get().addToGlobalHistory({
-                  image: result.image,
+                  image: outputImage,
                   timestamp: Date.now(),
                   prompt: text,
                   aspectRatio: nodeData.aspectRatio,
                   model: nodeData.model,
                 });
                 updateNodeData(node.id, {
-                  outputImage: result.image,
+                  outputImage,
                   status: "complete",
                   error: null,
                 });
@@ -896,7 +915,7 @@ export const useWorkflowStore = create<WorkflowStore>((set, get) => ({
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({
                       directoryPath: genPath,
-                      image: result.image,
+                      image: outputImage,
                       prompt: text,
                     }),
                   }).catch((err) => {
@@ -986,6 +1005,11 @@ export const useWorkflowStore = create<WorkflowStore>((set, get) => ({
                 });
                 set({ isRunning: false, currentNodeId: null });
                 return;
+              }
+
+              // Log Supabase fallback mode if present
+              if (result.meta?.supabase === "skipped") {
+                console.warn(`[WorkflowStore] Supabase skipped: ${result.meta.reason || "unknown"}`);
               }
 
               // Handle different response types (text, image URLs, etc.)

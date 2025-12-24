@@ -28,8 +28,35 @@ TEST_USER_ID=1a13c194-06ce-4d18-8b36-b9eaf0a5d5d3
 ALLOW_ANON_INFER=true
 # TEST_USER_ID is required when ALLOW_ANON_INFER=true
 
+# Supabase Fallback Mode (MVP mode - works without Supabase)
+INFER_SUPABASE_OPTIONAL=true
+# When true: inference works even if Supabase env vars missing or network fails
+# Returns Kie.ai URLs directly, skips credits/generations/storage
+# Use for: Vercel preview, local testing without Supabase setup
+
 # Mock Inference (fake results)
 USE_MOCK_INFERENCE=false
+```
+
+## Operating Modes
+
+### Strict Mode (Production)
+```bash
+INFER_SUPABASE_OPTIONAL=false  # or omit
+# Requires: All Supabase env vars configured
+# Behavior: Full tracking (credits, generations, storage)
+# Use for: Production deployments
+```
+
+### MVP Mode (Testing/Preview)
+```bash
+INFER_SUPABASE_OPTIONAL=true
+ALLOW_ANON_INFER=true
+TEST_USER_ID=your-test-uuid
+# Requires: Only KIE_API_KEY
+# Behavior: Inference works, returns Kie.ai URLs directly
+# Skips: Credits, generations table, storage upload
+# Use for: Vercel preview, local testing without Supabase
 ```
 
 ## Security Notes

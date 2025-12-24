@@ -104,6 +104,33 @@ TEST_USER_ID=00000000-0000-0000-0000-000000000000
 
 ---
 
+### Supabase Fallback Mode (MVP Mode)
+
+```env
+INFER_SUPABASE_OPTIONAL=false
+```
+
+**Values:**
+- `"true"` - Allow inference without Supabase (MVP mode)
+- `"false"` or unset - Require Supabase (strict mode)
+
+**How it works:**
+- When `true`: Inference works even if Supabase env vars missing or network fails
+- Returns Kie.ai URLs directly (no storage upload)
+- Skips credits check, generation records, storage upload
+- Returns `meta.supabase="skipped"` in response
+
+**Use case:** 
+- Vercel preview deployments without Supabase setup
+- Local testing without full Supabase configuration
+- MVP/demo mode where tracking is not critical
+
+**⚠️ Important:**
+- Never enable in production where credits/generations tracking is required
+- Use only for testing/preview environments
+
+---
+
 ### Mock Inference (for Development)
 
 ```env
@@ -230,11 +257,12 @@ UPDATE public.credits SET amount = 1000 WHERE user_id = 'your-test-uuid';
 |----------|----------|---------|---------|
 | `KIE_API_KEY` | ✅ | - | Kie.ai API access |
 | `ANTHROPIC_API_KEY` | ✅ | - | Anthropic API access |
-| `NEXT_PUBLIC_SUPABASE_URL` | ✅ | - | Supabase project URL |
+| `NEXT_PUBLIC_SUPABASE_URL` | ⚠️ | - | Supabase project URL (optional if INFER_SUPABASE_OPTIONAL=true) |
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | ❌ | - | Supabase anon key (if using client auth) |
-| `SUPABASE_SERVICE_ROLE_KEY` | ✅ | - | Supabase admin access |
+| `SUPABASE_SERVICE_ROLE_KEY` | ⚠️ | - | Supabase admin access (optional if INFER_SUPABASE_OPTIONAL=true) |
 | `TEST_MODE` | ❌ | `false` | Bypass auth globally |
 | `TEST_USER_ID` | ❌ | - | Test user UUID (for TEST_MODE / ALLOW_ANON_INFER) |
 | `ALLOW_ANON_INFER` | ❌ | `false` | Allow /api/infer without auth |
+| `INFER_SUPABASE_OPTIONAL` | ❌ | `false` | Allow inference without Supabase (MVP mode) |
 | `USE_MOCK_INFERENCE` | ❌ | `false` | Mock AI responses |
 
