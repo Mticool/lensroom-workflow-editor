@@ -21,3 +21,6 @@ IMPLEMENTATION_SUMMARY.md
 .env*.local
 .env.example
 *.log
+
+.local/
+examples/
