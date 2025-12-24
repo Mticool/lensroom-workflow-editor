@@ -43,6 +43,11 @@ KIE_API_KEY=your_kie_api_key_here
 # Mock mode for development/testing (optional, defaults to false)
 # When true: returns placeholder images without using real API credits
 USE_MOCK_INFERENCE=false
+
+# Anonymous inference (optional, for dev/testing only)
+# Allows /api/infer without auth session - uses TEST_USER_ID
+ALLOW_ANON_INFER=true
+TEST_USER_ID=your-test-user-uuid-here
 ```
 
 **Important:** API keys are NEVER exposed to the client. All AI inference requests are proxied through Next.js API routes (`/api/infer`).

@@ -20,9 +20,13 @@ SUPABASE_SERVICE_ROLE_KEY=your_supabase_service_role_key_here
 ## Optional (Development/Testing)
 
 ```bash
-# Test Mode (bypass auth)
+# Test Mode (bypass auth globally)
 TEST_MODE=true
 TEST_USER_ID=1a13c194-06ce-4d18-8b36-b9eaf0a5d5d3
+
+# Allow Anonymous Inference (bypass auth for /api/infer only)
+ALLOW_ANON_INFER=true
+# TEST_USER_ID is required when ALLOW_ANON_INFER=true
 
 # Mock Inference (fake results)
 USE_MOCK_INFERENCE=false

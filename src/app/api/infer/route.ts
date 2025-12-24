@@ -56,12 +56,35 @@ export async function POST(request: NextRequest) {
     // 1. AUTH: Get user ID
     userId = await getUserId(request);
 
+    // DEV MODE: Fallback to TEST_USER_ID if no session
     if (!userId) {
-      console.error(`[API:infer:${requestId}] ❌ Unauthorized`);
-      return NextResponse.json<InferResponse>(
-        { success: false, error: "Unauthorized" },
-        { status: 401 }
-      );
+      const allowAnon = process.env.ALLOW_ANON_INFER === "true";
+      const testUserId = process.env.TEST_USER_ID;
+
+      if (allowAnon && testUserId) {
+        // Validate UUID format
+        const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+        if (!uuidRegex.test(testUserId)) {
+          console.error(`[API:infer:${requestId}] ❌ TEST_USER_ID is not a valid UUID: ${testUserId}`);
+          return NextResponse.json<InferResponse>(
+            { success: false, error: "Invalid TEST_USER_ID configuration" },
+            { status: 500 }
+          );
+        }
+
+        userId = testUserId;
+        console.warn(`[API:infer:${requestId}] ⚠️ DEV MODE: Using TEST_USER_ID: ${userId}`);
+        console.warn(`[API:infer:${requestId}] ⚠️ This is for development only! Disable ALLOW_ANON_INFER in production.`);
+      } else {
+        console.error(`[API:infer:${requestId}] ❌ Unauthorized - No session found`);
+        return NextResponse.json<InferResponse>(
+          { 
+            success: false, 
+            error: "Требуется вход. Выполните авторизацию или включите тестовый режим (ALLOW_ANON_INFER=true)." 
+          },
+          { status: 401 }
+        );
+      }
     }
 
     console.log(`[API:infer:${requestId}] User ID: ${userId}`);

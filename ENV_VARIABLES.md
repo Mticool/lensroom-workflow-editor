@@ -58,15 +58,49 @@ TEST_USER_ID=00000000-0000-0000-0000-000000000000
 ```
 
 **TEST_MODE:**
-- `"true"` - Bypass auth, use `TEST_USER_ID` for all requests
+- `"true"` - Bypass auth globally, use `TEST_USER_ID` for ALL requests
 - `"false"` or unset - Normal authentication
 
 **TEST_USER_ID:**
 - Must be valid UUID
 - Must exist in `public.credits` table
-- Only used if `TEST_MODE=true`
+- Used by both `TEST_MODE` and `ALLOW_ANON_INFER`
 
 **Use case:** Vercel preview deployments without auth setup
+
+---
+
+### Anonymous Inference Mode (for Development)
+
+```env
+ALLOW_ANON_INFER=false
+TEST_USER_ID=00000000-0000-0000-0000-000000000000
+```
+
+**ALLOW_ANON_INFER:**
+- `"true"` - Allow `/api/infer` requests without auth session, use `TEST_USER_ID`
+- `"false"` or unset - Require authentication for `/api/infer`
+
+**How it works:**
+1. `/api/infer` tries to get userId from session (cookie/JWT)
+2. If no session found:
+   - If `ALLOW_ANON_INFER=true` AND `TEST_USER_ID` is set → use TEST_USER_ID
+   - Otherwise → return 401 Unauthorized
+
+**Differences from TEST_MODE:**
+
+| Feature | TEST_MODE | ALLOW_ANON_INFER |
+|---------|-----------|------------------|
+| Scope | All API routes | Only `/api/infer` |
+| Auth bypass | Global | Fallback only |
+| Use case | Staging/preview | Local dev/testing |
+
+**⚠️ Security Warning:**
+- Never enable `ALLOW_ANON_INFER` in production!
+- Anyone can make inference requests using your TEST_USER_ID credits
+- Use only for local development or secure test environments
+
+**Use case:** Testing inference without setting up full auth flow locally
 
 ---
 
@@ -195,10 +229,12 @@ UPDATE public.credits SET amount = 1000 WHERE user_id = 'your-test-uuid';
 | Variable | Required | Default | Purpose |
 |----------|----------|---------|---------|
 | `KIE_API_KEY` | ✅ | - | Kie.ai API access |
+| `ANTHROPIC_API_KEY` | ✅ | - | Anthropic API access |
 | `NEXT_PUBLIC_SUPABASE_URL` | ✅ | - | Supabase project URL |
-| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | ✅ | - | Supabase anon key |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | ❌ | - | Supabase anon key (if using client auth) |
 | `SUPABASE_SERVICE_ROLE_KEY` | ✅ | - | Supabase admin access |
-| `TEST_MODE` | ❌ | `false` | Enable test mode |
-| `TEST_USER_ID` | ❌ | - | Test user UUID |
+| `TEST_MODE` | ❌ | `false` | Bypass auth globally |
+| `TEST_USER_ID` | ❌ | - | Test user UUID (for TEST_MODE / ALLOW_ANON_INFER) |
+| `ALLOW_ANON_INFER` | ❌ | `false` | Allow /api/infer without auth |
 | `USE_MOCK_INFERENCE` | ❌ | `false` | Mock AI responses |
 
